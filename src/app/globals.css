@@ -1,0 +1,148 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  height: 100%;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  min-height: 100%;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+/*
+ * Esconde a scrollbar nativa dentro do container que simula o frame mobile
+ * (o wrapper de 393px de cada tela — `.app-scroll`, aplicado junto com
+ * `h-screen overflow-y-auto`). O scroll continua funcionando normalmente
+ * (roda, touch, teclado) — só o indicador visual do navegador some, porque
+ * uma scrollbar de desktop dentro de uma simulação de app mobile quebra a
+ * ilusão do frame. Não aplicado no <body> inteiro de propósito: o body em
+ * si não deve rolar (cada tela rola sozinha, dentro do próprio frame).
+ */
+.app-scroll {
+  scrollbar-width: none; /* Firefox */
+  -ms-overflow-style: none; /* Edge legado */
+}
+.app-scroll::-webkit-scrollbar {
+  display: none; /* Chrome/Safari */
+}
+
+/*
+ * Sistema de movimento — respeito global a prefers-reduced-motion. Em vez
+ * de checar essa media query componente por componente, zera a DURAÇÃO de
+ * toda transição/animação CSS de uma vez (o padrão recomendado pela W3C):
+ * o estado final ainda aparece, só sem o movimento. Timers em JS (toast,
+ * modal) continuam funcionando normalmente — eles decidem QUANDO algo
+ * some, essa regra só tira o movimento de COMO isso é mostrado. A splash
+ * (função própria) trata isso separado, virando estática.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/*
+ * Splash "Acende" (/, SplashScreen) — conceito: a logo do Sona é um
+ * interruptor, a animação é a clareza acendendo. O pino NUNCA se desloca —
+ * "ligar" acontece só por cor/luz (mover pra esquerda seria semanticamente
+ * invertido, já que a posição canônica do pino JÁ é à esquerda). Regida
+ * pela regra global de prefers-reduced-motion acima: zerando a duração,
+ * cada keyframe pula direto pro estado final (100%) — por isso toda
+ * animação daqui usa `forwards`/`both`, nunca depende de estado
+ * intermediário para o resultado ficar correto.
+ */
+@keyframes splash-pill-draw {
+  0% {
+    stroke-dashoffset: 1;
+    opacity: 0;
+  }
+  100% {
+    stroke-dashoffset: 0;
+    opacity: 0.4;
+  }
+}
+
+@keyframes splash-pill-color {
+  0% {
+    stroke: #c96040;
+    opacity: 0.4;
+  }
+  100% {
+    stroke: var(--splash-cor-final, #0c1a22);
+    opacity: 1;
+  }
+}
+
+@keyframes splash-pin-appear {
+  0% {
+    transform: scale(0);
+    opacity: 0;
+    fill: #c96040;
+  }
+  70% {
+    transform: scale(1.15);
+    opacity: 1;
+    fill: #c96040;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+    fill: #c96040;
+  }
+}
+
+@keyframes splash-pin-color {
+  0% {
+    fill: #c96040;
+  }
+  100% {
+    fill: var(--splash-cor-final, #0c1a22);
+  }
+}
+
+@keyframes splash-ring-expand {
+  0% {
+    r: 14;
+    opacity: 0.9;
+  }
+  100% {
+    r: 56;
+    opacity: 0;
+  }
+}
+
+@keyframes splash-wordmark-in {
+  0% {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes splash-tagline-in {
+  0% {
+    opacity: 0;
+  }
+  100% {
+    opacity: 1;
+  }
+}
