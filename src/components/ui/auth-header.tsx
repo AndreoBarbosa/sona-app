@@ -8,7 +8,7 @@ import { LogoCompacta } from "./logo-compacta";
  */
 export function AuthHeader({ headline, compacto = false }: { headline: ReactNode; compacto?: boolean }) {
   return (
-    <div className="flex flex-col items-center gap-4 px-4 pb-6 pt-8">
+    <div className="flex flex-col items-center gap-6 px-4 pb-6 pt-8">
       <div className="flex items-center gap-2.5">
         <LogoCompacta />
         {/* eslint-disable-next-line @next/next/no-img-element */}
