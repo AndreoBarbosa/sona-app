@@ -33,7 +33,11 @@ export function MetaChegadaCard({
         Chegada estimada
       </span>
 
-      {!resultado.dataValida ? (
+      {resultado.entradaInsana ? (
+        <p className="text-body-sm text-ink-primary">
+          Esse valor ou essa data parecem fora do comum — confira se não sobrou um dígito a mais.
+        </p>
+      ) : !resultado.dataValida ? (
         <p className="text-body-sm text-ink-primary">Escolha um valor alvo e quando quer chegar lá.</p>
       ) : resultado.cabeNoPlano ? (
         <p className="text-body-sm text-ink-primary">

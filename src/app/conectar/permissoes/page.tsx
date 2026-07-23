@@ -5,7 +5,6 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { StatusBar } from "@/components/ui/status-bar";
 import { BackButton } from "@/components/ui/back-button";
 import { Button } from "@/components/ui/button";
-import { BANCO_COM_FALHA_ID } from "@/lib/bancos";
 
 /**
  * Compartilhamento Open Finance — nó 778:4610, rota /conectar/permissoes.
@@ -13,10 +12,11 @@ import { BANCO_COM_FALHA_ID } from "@/lib/bancos";
  * momento" bem explícito. A frase "Sua senha bancária nunca é acessada ou
  * armazenada pelo sona." é OBRIGATÓRIA (regra do produto, não só do Figma).
  *
- * "Autorizar compartilhamento" simula uma autorização real (~1s) antes de
- * decidir sucesso/erro — `BANCO_COM_FALHA_ID` é o único banco com falha
- * DETERMINÍSTICA, pra o caminho de erro ser testável de verdade, nunca por
- * sorte.
+ * "Autorizar compartilhamento" só segue pra /conectar/conectando — é lá que
+ * o trabalho de verdade (e a decisão sucesso/erro, via `BANCO_COM_FALHA_ID`)
+ * acontece agora. Antes essa decisão rolava aqui atrás de um `setTimeout`
+ * de 1.1s sem nada visível na tela — sucesso instantâneo demais pra parecer
+ * real.
  */
 
 const DADOS_COMPARTILHADOS = [
@@ -41,10 +41,7 @@ function ConectarPermissoesConteudo() {
   function autorizar() {
     if (autorizando) return;
     setAutorizando(true);
-    setTimeout(() => {
-      const destino = bancoId === BANCO_COM_FALHA_ID ? "/conectar/erro" : "/conectar/sucesso";
-      router.push(bancoId ? `${destino}?banco=${bancoId}` : destino);
-    }, 1100);
+    router.push(bancoId ? `/conectar/conectando?banco=${bancoId}` : "/conectar/conectando");
   }
 
   return (

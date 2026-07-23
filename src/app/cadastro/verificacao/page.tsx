@@ -6,14 +6,21 @@ import { StatusBar } from "@/components/ui/status-bar";
 import { BackButton } from "@/components/ui/back-button";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/lib/toast-context";
-import { marcarOnboardingConcluido } from "@/lib/onboarding";
 
 /**
  * Verificação de e-mail — nó 416:1044, rota /cadastro/verificacao. Sem
  * backend: não existe e-mail de verdade sendo enviado — "Já verifiquei meu
- * e-mail" confirma a conta na hora e entra na Home, "Reenviar e-mail" só dá
- * o retorno visual (toast) que a regra de navegação exige pra toda ação do
- * usuário.
+ * e-mail" confirma a conta na hora, "Reenviar e-mail" só dá o retorno
+ * visual (toast) que a regra de navegação exige pra toda ação do usuário.
+ *
+ * Quem acabou de criar conta ainda NÃO conectou banco nem tem diagnóstico —
+ * "Já verifiquei meu e-mail" segue a jornada real (→ /onboarding, que
+ * termina em /conectar → diagnóstico → primeira meta → Home), nunca pula
+ * direto pra Home como se os dados já estivessem conectados. Só quem faz
+ * LOGIN (conta que já tinha banco conectado) entra direto — ver
+ * `src/app/login/page.tsx`. `marcarOnboardingConcluido` não é chamado
+ * aqui: quem de fato marca isso é o próprio onboarding, ao ser
+ * completado ou pulado por um dos seus botões.
  */
 export default function VerificacaoEmailPage() {
   return (
@@ -29,8 +36,7 @@ function VerificacaoEmailConteudo() {
   const email = useSearchParams().get("email") || "seu e-mail";
 
   function confirmar() {
-    marcarOnboardingConcluido();
-    router.replace("/home");
+    router.replace("/onboarding");
   }
 
   return (

@@ -487,6 +487,15 @@ export function getDataPrevistaComAporte(
   return data;
 }
 
+/** Teto de sanidade pro valor alvo de uma meta — nada no produto justifica
+ *  uma meta de 8 dígitos; acima disso é sempre erro de entrada (dedo no
+ *  campo errado, colagem duplicada), nunca um valor real a aceitar. */
+export const VALOR_ALVO_MAXIMO = 10_000_000;
+/** Teto de sanidade pra chegada projetada — acima disso o resultado não é
+ *  "uma meta de longuíssimo prazo", é sintoma de entrada inválida rio
+ *  acima (valor alvo ou data corrompidos). */
+export const ANOS_MAXIMO_CHEGADA = 50;
+
 export interface ResultadoChegada {
   /** false enquanto valor/data ainda não formam uma meta válida (ex.: campos vazios). */
   dataValida: boolean;
@@ -500,6 +509,10 @@ export interface ResultadoChegada {
   aporteFinal: number;
   /** Quando cabe: igual a dataEscolhida. Quando não cabe: a chegada REAL no ritmo possível (aporteFinal). */
   dataRealista: Date | null;
+  /** true quando valorAlvo passa de `VALOR_ALVO_MAXIMO` OU a chegada projetada passa de
+   *  `ANOS_MAXIMO_CHEGADA` — a UI trata isso como erro de entrada, nunca exibe o resultado
+   *  bruto (nenhuma meta real produz uma chegada em duzentos anos). */
+  entradaInsana: boolean;
 }
 
 /**
@@ -516,7 +529,7 @@ export function calcularChegada(
   teto: number,
   hoje: Date = new Date(),
 ): ResultadoChegada {
-  if (!dataAlvo || valorAlvo <= valorAtual) {
+  if (!dataAlvo || valorAlvo <= valorAtual || valorAlvo > VALOR_ALVO_MAXIMO) {
     return {
       dataValida: false,
       dataEscolhida: null,
@@ -524,6 +537,7 @@ export function calcularChegada(
       cabeNoPlano: true,
       aporteFinal: 0,
       dataRealista: null,
+      entradaInsana: valorAlvo > VALOR_ALVO_MAXIMO,
     };
   }
 
@@ -531,8 +545,18 @@ export function calcularChegada(
   const cabeNoPlano = aporteNecessario <= teto;
   const aporteFinal = Math.min(aporteNecessario, teto);
   const dataRealista = cabeNoPlano ? dataAlvo : getDataPrevistaComAporte(valorAtual, valorAlvo, teto, hoje);
+  const anosAteChegada = dataRealista ? (dataRealista.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24 * 365) : 0;
+  const entradaInsana = anosAteChegada > ANOS_MAXIMO_CHEGADA;
 
-  return { dataValida: true, dataEscolhida: dataAlvo, aporteNecessario, cabeNoPlano, aporteFinal, dataRealista };
+  return {
+    dataValida: true,
+    dataEscolhida: dataAlvo,
+    aporteNecessario,
+    cabeNoPlano,
+    aporteFinal,
+    dataRealista,
+    entradaInsana,
+  };
 }
 
 /** Média ponderada: folga 40%, estabilidade 30%, proteção 30%. */

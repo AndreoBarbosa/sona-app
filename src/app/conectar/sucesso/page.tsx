@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { StatusBar } from "@/components/ui/status-bar";
 import { BackButton } from "@/components/ui/back-button";
@@ -13,7 +13,14 @@ import { getBancoPorId } from "@/lib/bancos";
  * como no Figma de origem. Único caminho a partir daqui é "Ver meu
  * diagnóstico" → /diagnostico/analise (regra da jornada: Open Finance →
  * Diagnóstico, nunca pulado).
+ *
+ * Avança sozinho depois de ~1.5s — agora que existe um loading de verdade
+ * antes desta tela (`/conectar/conectando`), dois carregamentos separados
+ * por uma tela de sucesso "pesada" viram espera demais. O botão continua
+ * funcionando pra quem quiser ir na hora.
  */
+const AVANCO_AUTOMATICO_MS = 1500;
+
 export default function ConectarSucessoPage() {
   return (
     <Suspense fallback={null}>
@@ -26,6 +33,11 @@ function ConectarSucessoConteudo() {
   const router = useRouter();
   const bancoId = useSearchParams().get("banco");
   const banco = getBancoPorId(bancoId);
+
+  useEffect(() => {
+    const timeout = setTimeout(() => router.replace("/diagnostico/analise"), AVANCO_AUTOMATICO_MS);
+    return () => clearTimeout(timeout);
+  }, [router]);
 
   return (
     <div className="min-h-screen bg-surface-app">

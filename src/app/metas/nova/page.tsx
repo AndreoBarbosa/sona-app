@@ -116,7 +116,7 @@ function NovaMetaConteudo() {
       (dataAlvo.getFullYear() === hoje.getFullYear() && dataAlvo.getMonth() > hoje.getMonth()));
 
   const valorAlvoValido = valorAlvo > 0;
-  const podeCriar = valorAlvoValido && dataNoFuturo;
+  const podeCriar = valorAlvoValido && dataNoFuturo && !resultado.entradaInsana;
 
   const novaMeta = novaMetaId ? getMetaPorId(novaMetaId, metas) : undefined;
   const metasAtivasParaDivisao = getMetasAtivas(metas);
@@ -173,11 +173,17 @@ function NovaMetaConteudo() {
     setNovaMetaId(id);
     if (primeiraMeta) marcarPrimeiraMetaCriada();
 
-    if (outrasAtivas.length > 0) {
+    if (outrasAtivas.length > 0 && !primeiraMeta) {
       // Já existe outra meta ativa: a sobra precisa ser repartida entre
       // elas — inclusive quando o aporte necessário não coube no teto
       // (resultado.cabeNoPlano === false), é aqui que esse trade-off se
       // resolve, nunca bloqueando a criação em si.
+      //
+      // `!primeiraMeta` é a exceção: quem chega via `?primeiraMeta=1` (do
+      // primeiro diagnóstico) está escolhendo A meta, não repartindo entre
+      // várias — mesmo que a Reserva/Viagem canônicas já existam no mock,
+      // pra essa pessoa não há "sobra a repartir" a mostrar. Pula direto
+      // pra conclusão, como pedido.
       setEtapa(3);
     } else {
       // Primeira meta do usuário: não há com o que repartir, pula direto

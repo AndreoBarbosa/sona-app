@@ -115,7 +115,7 @@ function EditarMetaConteudo({ meta }: { meta: Meta }) {
 
   const nomeValido = nome.trim().length > 0;
   const valorAlvoValido = valorAlvo > meta.valorAtual;
-  const podeSalvar = nomeValido && valorAlvoValido && dataNoFuturo;
+  const podeSalvar = nomeValido && valorAlvoValido && dataNoFuturo && !resultado.entradaInsana;
 
   const sujo =
     nome.trim() !== meta.titulo ||

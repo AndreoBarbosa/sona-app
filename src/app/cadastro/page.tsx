@@ -8,7 +8,6 @@ import { AuthHeader } from "@/components/ui/auth-header";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { NomeSocialModal } from "@/components/ui/nome-social-modal";
-import { marcarOnboardingConcluido } from "@/lib/onboarding";
 import { useDemoStore } from "@/lib/demo-context";
 import { useAuth, emailValido, emailSocialSimulado } from "@/lib/auth-context";
 
@@ -56,8 +55,11 @@ export default function CadastroPage() {
     if (!provedor) return;
     renomear(nome);
     cadastrar(nome, emailSocialSimulado(nome, provedor));
-    marcarOnboardingConcluido();
-    router.replace("/home");
+    // Cadastro (mesmo social) é conta NOVA — segue a mesma jornada do
+    // cadastro por e-mail (→ onboarding → conectar → diagnóstico →
+    // primeira meta → Home), nunca pula direto pra Home. Só login entra
+    // direto (ver src/app/login/page.tsx).
+    router.replace("/onboarding");
   }
 
   return (
