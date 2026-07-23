@@ -10,6 +10,7 @@ import { MetaIconePicker } from "@/components/ui/meta-icone-picker";
 import { MetaChegadaCard } from "@/components/meta-chegada-card";
 import { DivisaoDaSobraEditor } from "@/components/divisao-da-sobra";
 import { useMetas } from "@/lib/metas-context";
+import { useDemoStore } from "@/lib/demo-context";
 import { dataParaInputMonth, inputMonthParaData } from "@/lib/mes-input";
 import { cx } from "@/lib/cx";
 import {
@@ -84,6 +85,7 @@ export default function NovaMetaPage() {
 function NovaMetaConteudo() {
   const router = useRouter();
   const { metas, criarMeta, ajustarAporte } = useMetas();
+  const { marcarPrimeiraMetaCriada } = useDemoStore();
   const primeiraMeta = useSearchParams().get("primeiraMeta") === "1";
 
   const [etapa, setEtapa] = useState<0 | 1 | 2 | 3>(primeiraMeta ? 0 : 1);
@@ -169,6 +171,7 @@ function NovaMetaConteudo() {
       aporteMensal: resultado.aporteFinal,
     });
     setNovaMetaId(id);
+    if (primeiraMeta) marcarPrimeiraMetaCriada();
 
     if (outrasAtivas.length > 0) {
       // Já existe outra meta ativa: a sobra precisa ser repartida entre

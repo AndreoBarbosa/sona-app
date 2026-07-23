@@ -1,11 +1,13 @@
+"use client";
+
 import Link from "next/link";
 import { StatusBar } from "@/components/ui/status-bar";
 import { Card } from "@/components/ui/card";
 import { AppNavBar } from "@/components/app-nav-bar";
 import { EyebrowHeadline } from "@/components/ui/eyebrow-headline";
 import { FinanceHealthCard } from "@/components/finance-health-card";
+import { useDemoStore } from "@/lib/demo-context";
 import {
-  perfil,
   categorias,
   diagnostico,
   formatBRL,
@@ -43,6 +45,7 @@ const CATEGORIA_ICON_SRC: Partial<Record<CategoriaId, string>> = {
 };
 
 export default function DiagnosticoPage() {
+  const { perfil } = useDemoStore();
   const primeiroNome = perfil.nome.split(" ")[0];
   const score = getScoreSaudeFinanceira();
   const gastoTotal = getGastoTotal();

@@ -7,8 +7,8 @@ import { BackButton } from "@/components/ui/back-button";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FinanceHealthCard } from "@/components/finance-health-card";
+import { useDemoStore } from "@/lib/demo-context";
 import {
-  perfil,
   categorias,
   diagnostico,
   formatBRL,
@@ -39,6 +39,7 @@ const CATEGORIA_ICON_SRC: Partial<Record<CategoriaId, string>> = {
 
 export default function DiagnosticoResultadoPage() {
   const router = useRouter();
+  const { perfil } = useDemoStore();
   const primeiroNome = perfil.nome.split(" ")[0];
   const score = getScoreSaudeFinanceira();
   const gastoTotal = getGastoTotal();

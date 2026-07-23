@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, type ReactNode } from "react";
 import {
   metas as metasIniciais,
   pausarMeta as pausarMetaPura,
@@ -17,6 +17,7 @@ import {
   type MetaIconeId,
   type OpcaoAjusteDeRota,
 } from "@/lib/mock-data";
+import { limpar, usePersistedState, CHAVES } from "@/lib/persist";
 
 /**
  * Camada de estado mutável por cima do mock-data. Os selectors de
@@ -54,34 +55,42 @@ interface MetasContextValue {
   /** QA — força `valorAtual` a um valor (ex.: o próprio `valorAlvo`), pra
    *  testar a tela de Meta concluída sem esperar meses de aporte reais. */
   forcarValorAtual: (id: string, valor: number) => void;
+  /** QA/reset do modo demo — volta pro array canônico da Fernanda (Reserva +
+   *  Europa) e limpa a chave persistida, sem esperar um reload. */
+  resetarMetas: () => void;
 }
 
 const MetasContext = createContext<MetasContextValue | null>(null);
 
 export function MetasProvider({ children }: { children: ReactNode }) {
-  const [metas, setMetas] = useState<Meta[]>(metasIniciais);
+  // Começa com o array canônico (bate com o HTML renderizado no servidor);
+  // o valor persistido, se existir, só entra depois de montado — ver efeito
+  // abaixo. Isso evita hydration mismatch (SSR nunca vê localStorage).
+  // `usePersistedState` já resolve hidratação (SSR-safe) + gravação sem a
+  // race entre os dois efeitos — ver comentário na definição.
+  const [metas, setMetas] = usePersistedState<Meta[]>(CHAVES.metas, metasIniciais);
 
   const excluirMeta = useCallback((id: string) => {
     setMetas((atual) => excluirMetaPura(atual, id));
-  }, []);
+  }, [setMetas]);
 
   const pausarMeta = useCallback((id: string) => {
     setMetas((atual) => pausarMetaPura(atual, id));
-  }, []);
+  }, [setMetas]);
 
   const retomarMeta = useCallback((id: string) => {
     setMetas((atual) => retomarMetaPura(atual, id));
-  }, []);
+  }, [setMetas]);
 
   const ajustarAporte = useCallback((id: string, novoAporte: number) => {
     setMetas((atual) => ajustarAporteMetaPura(atual, id, novoAporte));
-  }, []);
+  }, [setMetas]);
 
   const editarMeta = useCallback(
     (id: string, patch: { titulo?: string; valorAlvo?: number; icone?: MetaIconeId }) => {
       setMetas((atual) => editarMetaPura(atual, id, patch));
     },
-    [],
+    [setMetas],
   );
 
   const criarMeta = useCallback(
@@ -96,24 +105,29 @@ export function MetasProvider({ children }: { children: ReactNode }) {
       setMetas((atual) => criarMetaPura(atual, id, input));
       return id;
     },
-    [],
+    [setMetas],
   );
 
   const simularDivergencia = useCallback((id: string, saldoReal: number) => {
     setMetas((atual) => simularDivergenciaPura(atual, id, saldoReal));
-  }, []);
+  }, [setMetas]);
 
   const resolverAjusteDeRota = useCallback((id: string, opcao: OpcaoAjusteDeRota) => {
     setMetas((atual) => resolverAjusteDeRotaPura(atual, id, opcao));
-  }, []);
+  }, [setMetas]);
 
   const concluirMeta = useCallback((id: string) => {
     setMetas((atual) => concluirMetaPura(atual, id));
-  }, []);
+  }, [setMetas]);
 
   const forcarValorAtual = useCallback((id: string, valor: number) => {
     setMetas((atual) => forcarValorAtualPura(atual, id, valor));
-  }, []);
+  }, [setMetas]);
+
+  const resetarMetas = useCallback(() => {
+    limpar(CHAVES.metas);
+    setMetas(metasIniciais);
+  }, [setMetas]);
 
   return (
     <MetasContext.Provider
@@ -129,6 +143,7 @@ export function MetasProvider({ children }: { children: ReactNode }) {
         resolverAjusteDeRota,
         concluirMeta,
         forcarValorAtual,
+        resetarMetas,
       }}
     >
       {children}

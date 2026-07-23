@@ -56,3 +56,20 @@ export function useAuth() {
 export function emailValido(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 }
+
+/**
+ * E-mail fabricado pro login social SIMULADO (Google/Apple) — não existe
+ * OAuth de verdade, só o nome que a pessoa digitou no modal
+ * (`NomeSocialModal`). Vira o "e-mail" da sessão só pra manter a mesma
+ * forma de dado (`AuthUser.email`) usada pelo login/cadastro normal.
+ */
+export function emailSocialSimulado(nome: string, provedor: "Google" | "Apple"): string {
+  const slug = nome
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, ".")
+    .replace(/^\.+|\.+$/g, "");
+  return `${slug || "convidado"}@${provedor === "Google" ? "gmail.com" : "icloud.com"}`;
+}

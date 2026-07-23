@@ -1,11 +1,15 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { BackButton } from "@/components/ui/back-button";
 import { StatusBar } from "@/components/ui/status-bar";
 import { Card } from "@/components/ui/card";
 import { ListRow } from "@/components/ui/list-row";
-import { perfil, contas, type BancoId } from "@/lib/mock-data";
+import { ConfirmationModal } from "@/components/ui/confirmation-modal";
+import { useDemoStore } from "@/lib/demo-context";
+import { useResetDemo } from "@/lib/use-reset-demo";
+import { contas, type BancoId } from "@/lib/mock-data";
 
 /**
  * Perfil / Visão geral — nó 763:4455, rota /perfil. Não é uma aba da nav bar
@@ -40,6 +44,9 @@ const BANK_LOGO: Record<BancoId, string> = {
 
 export default function PerfilPage() {
   const contasConectadas = contas.filter((c) => c.saldo > 0);
+  const { perfil } = useDemoStore();
+  const resetarTudo = useResetDemo();
+  const [confirmandoReset, setConfirmandoReset] = useState(false);
 
   return (
     <div className="min-h-screen bg-surface-app">
@@ -130,11 +137,37 @@ export default function PerfilPage() {
             </div>
           </div>
 
-          <span className="text-center text-[12px] font-medium leading-[1.5] tracking-[0.01em] text-coral-600">
-            Sair da conta
-          </span>
+          <div className="flex flex-col items-center gap-3">
+            <span className="text-center text-[12px] font-medium leading-[1.5] tracking-[0.01em] text-coral-600">
+              Sair da conta
+            </span>
+            <button
+              type="button"
+              onClick={() => setConfirmandoReset(true)}
+              className="text-center text-[12px] font-medium leading-[1.5] tracking-[0.01em] text-ink-muted"
+            >
+              Recomeçar demo
+            </button>
+          </div>
         </main>
       </div>
+
+      {confirmandoReset && (
+        <ConfirmationModal
+          title="Recomeçar a demo?"
+          description={
+            <p>
+              Todas as metas, o nome e os estados de teste voltam ao ponto de partida da Fernanda. A demonstração
+              recomeça pela tela inicial.
+            </p>
+          }
+          confirmLabel="Recomeçar"
+          onConfirm={resetarTudo}
+          dismissLabel="Cancelar"
+          onDismiss={() => setConfirmandoReset(false)}
+          perigo
+        />
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { StatusBar } from "@/components/ui/status-bar";
 import { AppNavBar } from "@/components/app-nav-bar";
+import { useDemoStore } from "@/lib/demo-context";
 import { cx } from "@/lib/cx";
 import {
   categorias,
@@ -112,13 +113,17 @@ function LinhaLancamento({ lancamento, categoriaNome }: { lancamento: Lancamento
 
 export default function HistoricoPage() {
   const [mesAtual, setMesAtual] = useState(() => new Date(2026, 6, 1));
+  const { historicoForcadoVazio } = useDemoStore();
 
   const lancamentos = getTodosLancamentos();
   const lancamentosDoMes = lancamentos.filter((l) => {
     const d = new Date(`${l.data}T00:00:00`);
     return d.getFullYear() === mesAtual.getFullYear() && d.getMonth() === mesAtual.getMonth();
   });
-  const temHistorico = lancamentosDoMes.length > 0;
+  // `historicoForcadoVazio` é um estado só de QA (/qa) — não mexe em
+  // `categorias`/gastos reais (isso quebraria Diagnóstico/Capacidade), só
+  // esconde a lista aqui pra testar o empty state sob demanda.
+  const temHistorico = !historicoForcadoVazio && lancamentosDoMes.length > 0;
 
   const gastoDoMes = lancamentosDoMes.reduce((soma, l) => soma + l.valor, 0);
 

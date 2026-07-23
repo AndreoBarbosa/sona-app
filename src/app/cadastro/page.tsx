@@ -7,8 +7,10 @@ import { BackButton } from "@/components/ui/back-button";
 import { AuthHeader } from "@/components/ui/auth-header";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/lib/toast-context";
-import { useAuth, emailValido } from "@/lib/auth-context";
+import { NomeSocialModal } from "@/components/ui/nome-social-modal";
+import { marcarOnboardingConcluido } from "@/lib/onboarding";
+import { useDemoStore } from "@/lib/demo-context";
+import { useAuth, emailValido, emailSocialSimulado } from "@/lib/auth-context";
 
 /**
  * Cadastro — nó 807:3908 (preenchido: 819:3947), rota /cadastro. Sem
@@ -27,12 +29,13 @@ import { useAuth, emailValido } from "@/lib/auth-context";
 export default function CadastroPage() {
   const router = useRouter();
   const { cadastrar } = useAuth();
-  const { showToast } = useToast();
+  const { renomear } = useDemoStore();
 
   const [nome, setNome] = useState("");
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [confirmarSenha, setConfirmarSenha] = useState("");
+  const [provedorSocial, setProvedorSocial] = useState<"Google" | "Apple" | null>(null);
 
   const valido = useMemo(
     () => nome.trim().length > 0 && emailValido(email) && senha.length >= 6 && senha === confirmarSenha,
@@ -43,11 +46,18 @@ export default function CadastroPage() {
     e.preventDefault();
     if (!valido) return;
     cadastrar(nome.trim(), email.trim());
+    renomear(nome.trim());
     router.push(`/cadastro/verificacao?email=${encodeURIComponent(email.trim())}`);
   }
 
-  function loginSocial(provedor: string) {
-    showToast(`Login com ${provedor} não faz parte deste case.`);
+  function confirmarCadastroSocial(nome: string) {
+    const provedor = provedorSocial;
+    setProvedorSocial(null);
+    if (!provedor) return;
+    renomear(nome);
+    cadastrar(nome, emailSocialSimulado(nome, provedor));
+    marcarOnboardingConcluido();
+    router.replace("/home");
   }
 
   return (
@@ -62,7 +72,7 @@ export default function CadastroPage() {
         <AuthHeader
           headline={
             <>
-              Cria <span className="text-sage-400">conta</span> ?
+              Criar <span className="text-sage-400">conta</span>
             </>
           }
         />
@@ -133,16 +143,20 @@ export default function CadastroPage() {
               <div className="flex gap-4">
                 <button
                   type="button"
-                  onClick={() => loginSocial("Google")}
-                  className="flex h-14 flex-1 items-center justify-center gap-3 rounded-button border border-border text-[16px] tracking-[-0.02em] text-ink-primary"
+                  onClick={() => setProvedorSocial("Google")}
+                  className="flex h-14 flex-1 items-center justify-center gap-2 rounded-button border border-border text-[16px] tracking-[-0.02em] text-ink-primary"
                 >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/icons/logo-google.svg" alt="" aria-hidden="true" className="h-[18px] w-[18px]" />
                   Google
                 </button>
                 <button
                   type="button"
-                  onClick={() => loginSocial("Apple")}
-                  className="flex h-14 flex-1 items-center justify-center gap-3 rounded-button border border-border text-[16px] tracking-[-0.02em] text-ink-primary"
+                  onClick={() => setProvedorSocial("Apple")}
+                  className="flex h-14 flex-1 items-center justify-center gap-2 rounded-button border border-border text-[16px] tracking-[-0.02em] text-ink-primary"
                 >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/icons/logo-apple.svg" alt="" aria-hidden="true" className="h-[18px] w-[18px]" />
                   Apple
                 </button>
               </div>
@@ -150,6 +164,14 @@ export default function CadastroPage() {
           </div>
         </form>
       </div>
+
+      {provedorSocial && (
+        <NomeSocialModal
+          provedor={provedorSocial}
+          onConfirm={confirmarCadastroSocial}
+          onDismiss={() => setProvedorSocial(null)}
+        />
+      )}
     </div>
   );
 }

@@ -15,3 +15,10 @@ export function marcarOnboardingConcluido(): void {
   if (typeof window === "undefined") return;
   localStorage.setItem(ONBOARDING_KEY, "1");
 }
+
+/** "Recomeçar demo" (Perfil) / reset canônico (/qa) — volta ao estado de
+ *  primeiro acesso, pra a Splash mandar de novo pro onboarding. */
+export function resetarOnboarding(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(ONBOARDING_KEY);
+}

@@ -7,11 +7,11 @@ import { AppNavBar } from "@/components/app-nav-bar";
 import { FinanceHealthCard } from "@/components/finance-health-card";
 import { ChevronIcon } from "@/components/ui/icons/chevron-icon";
 import { useMetas } from "@/lib/metas-context";
+import { useDemoStore } from "@/lib/demo-context";
 import { useValorAnimado } from "@/lib/use-valor-animado";
 import { cx } from "@/lib/cx";
 import { getCorMetaPorIndice } from "@/lib/cor-meta";
 import {
-  perfil,
   contas,
   categorias,
   diagnostico,
@@ -91,6 +91,7 @@ function IconPlusMini({ className }: { className?: string }) {
 
 export default function HomePage() {
   const { metas } = useMetas();
+  const { perfil } = useDemoStore();
 
   const primeiroNome = perfil.nome.split(" ")[0];
   const score = getScoreSaudeFinanceira();

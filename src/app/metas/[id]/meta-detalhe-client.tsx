@@ -13,6 +13,7 @@ import { PausarMetaButton } from "@/components/pausar-meta-button";
 import { ExcluirMetaModal } from "@/components/excluir-meta-modal";
 import { Button } from "@/components/ui/button";
 import { useMetas } from "@/lib/metas-context";
+import { useDemoStore } from "@/lib/demo-context";
 import { useToast } from "@/lib/toast-context";
 import { getCorMeta } from "@/lib/cor-meta";
 import {
@@ -28,7 +29,6 @@ import {
   formatMesAno,
   formatMesAnoExtenso,
   META_ICONES,
-  perfil,
   type Meta,
 } from "@/lib/mock-data";
 
@@ -106,6 +106,7 @@ function MetaConcluidaCelebracao({ meta }: { meta: Meta }) {
   const router = useRouter();
   const { concluirMeta } = useMetas();
   const { showToast } = useToast();
+  const { perfil } = useDemoStore();
   const primeiroNome = perfil.nome.split(" ")[0];
 
   function comecarNovaMeta() {

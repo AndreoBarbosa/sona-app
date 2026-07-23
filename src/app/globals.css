@@ -57,6 +57,23 @@ body {
   }
 }
 
+/**
+ * Mesma regra acima, mas via classe em vez de media query — permite o painel
+ * de QA (/qa) forçar "sem movimento" independente da preferência real do
+ * SO, pra conferir o comportamento sem precisar mudar configuração do
+ * sistema. Não cobre a Splash (ela lê a media query real via
+ * `window.matchMedia`, não esta classe) — documentado no próprio /qa.
+ */
+.forcar-motion-reduzido,
+.forcar-motion-reduzido *,
+.forcar-motion-reduzido *::before,
+.forcar-motion-reduzido *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+
 /*
  * Splash "Acende" (/, SplashScreen) — conceito: a logo do Sona é um
  * interruptor, a animação é a clareza acendendo. O pino NUNCA se desloca —

@@ -8,9 +8,11 @@ import { BackButton } from "@/components/ui/back-button";
 import { AuthHeader } from "@/components/ui/auth-header";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { NomeSocialModal } from "@/components/ui/nome-social-modal";
 import { useToast } from "@/lib/toast-context";
 import { marcarOnboardingConcluido } from "@/lib/onboarding";
-import { useAuth, emailValido, SENHA_DEMO_INCORRETA } from "@/lib/auth-context";
+import { useDemoStore } from "@/lib/demo-context";
+import { useAuth, emailValido, emailSocialSimulado, SENHA_DEMO_INCORRETA } from "@/lib/auth-context";
 
 /**
  * Login — nó 415:924 (preenchido 807:3782 · erro de senha 807:3845 · erro
@@ -27,12 +29,14 @@ import { useAuth, emailValido, SENHA_DEMO_INCORRETA } from "@/lib/auth-context";
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
+  const { renomear } = useDemoStore();
   const { showToast } = useToast();
 
   const [email, setEmail] = useState("");
   const [senha, setSenha] = useState("");
   const [erroEmail, setErroEmail] = useState(false);
   const [erroSenha, setErroSenha] = useState(false);
+  const [provedorSocial, setProvedorSocial] = useState<"Google" | "Apple" | null>(null);
 
   const preenchido = email.trim().length > 0 && senha.length > 0;
 
@@ -53,8 +57,14 @@ export default function LoginPage() {
     router.replace("/home");
   }
 
-  function loginSocial(provedor: string) {
-    showToast(`Login com ${provedor} não faz parte deste case.`);
+  function confirmarLoginSocial(nome: string) {
+    const provedor = provedorSocial;
+    setProvedorSocial(null);
+    if (!provedor) return;
+    renomear(nome);
+    login(emailSocialSimulado(nome, provedor));
+    marcarOnboardingConcluido();
+    router.replace("/home");
   }
 
   return (
@@ -143,16 +153,20 @@ export default function LoginPage() {
               <div className="flex gap-4">
                 <button
                   type="button"
-                  onClick={() => loginSocial("Google")}
-                  className="flex h-14 flex-1 items-center justify-center gap-3 rounded-button border border-border text-[16px] tracking-[-0.02em] text-ink-primary"
+                  onClick={() => setProvedorSocial("Google")}
+                  className="flex h-14 flex-1 items-center justify-center gap-2 rounded-button border border-border text-[16px] tracking-[-0.02em] text-ink-primary"
                 >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/icons/logo-google.svg" alt="" aria-hidden="true" className="h-[18px] w-[18px]" />
                   Google
                 </button>
                 <button
                   type="button"
-                  onClick={() => loginSocial("Apple")}
-                  className="flex h-14 flex-1 items-center justify-center gap-3 rounded-button border border-border text-[16px] tracking-[-0.02em] text-ink-primary"
+                  onClick={() => setProvedorSocial("Apple")}
+                  className="flex h-14 flex-1 items-center justify-center gap-2 rounded-button border border-border text-[16px] tracking-[-0.02em] text-ink-primary"
                 >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/icons/logo-apple.svg" alt="" aria-hidden="true" className="h-[18px] w-[18px]" />
                   Apple
                 </button>
               </div>
@@ -176,6 +190,14 @@ export default function LoginPage() {
           </div>
         </form>
       </div>
+
+      {provedorSocial && (
+        <NomeSocialModal
+          provedor={provedorSocial}
+          onConfirm={confirmarLoginSocial}
+          onDismiss={() => setProvedorSocial(null)}
+        />
+      )}
     </div>
   );
 }

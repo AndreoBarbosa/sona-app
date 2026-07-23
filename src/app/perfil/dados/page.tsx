@@ -1,8 +1,10 @@
+"use client";
+
 import { BackButton } from "@/components/ui/back-button";
 import { StatusBar } from "@/components/ui/status-bar";
 import { Card } from "@/components/ui/card";
 import { ListRow } from "@/components/ui/list-row";
-import { perfil } from "@/lib/mock-data";
+import { useDemoStore } from "@/lib/demo-context";
 
 /**
  * Perfil / Dados pessoais — nó 1079:2441, rota /perfil/dados. Sem nav bar →
@@ -19,6 +21,8 @@ import { perfil } from "@/lib/mock-data";
  * toque nem entra na ordem de tab como link morto.
  */
 export default function DadosPessoaisPage() {
+  const { perfil } = useDemoStore();
+
   return (
     <div className="min-h-screen bg-surface-app">
       <div className="app-scroll mx-auto flex h-screen max-w-mobile flex-col overflow-y-auto">
