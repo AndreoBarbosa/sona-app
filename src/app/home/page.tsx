@@ -44,31 +44,6 @@ const BANK_LOGO: Record<BancoId, string> = {
  *  desc, então os primeiros são sempre os mais relevantes. */
 const LOGOS_VISIVEIS_PATRIMONIO = 4;
 
-/** Selo circular do chevron nos cards clicáveis da Home — 16px, chevron do
- *  MESMO asset do BackButton (aponta pra baixo por padrão, -rotate-90 vira
- *  direita). Fica FORA do flex de conteúdo do card (`position: absolute`,
- *  passado via `className` por quem usa) — colocá-lo dentro do mesmo
- *  container que o conteúdo, dividindo espaço via `justify-between`, foi o
- *  que apertava/descentralizava tudo antes. Cor por card: petróleo usa
- *  base-50 a 50% (discreto sobre fundo escuro), Capacidade usa base-400
- *  sólido — nunca a mesma cor nos dois, o card inteiro já é o alvo de
- *  toque, o círculo é só a dica. */
-function CardChevronBadge({
-  borderClass,
-  iconClass,
-  className,
-}: {
-  borderClass: string;
-  iconClass: string;
-  className?: string;
-}) {
-  return (
-    <span className={cx("flex h-4 w-4 shrink-0 items-center justify-center rounded-pill border", borderClass, className)}>
-      <ChevronIcon className={cx("h-[7px] w-[7px] -rotate-90", iconClass)} />
-    </span>
-  );
-}
-
 /** Selo "+N" de overflow da pilha de bancos — nó 652:2189, ícone real (não
  *  existia no app antes); some quando `contas.length <= LOGOS_VISIVEIS_PATRIMONIO`. */
 function IconPlusMini({ className }: { className?: string }) {
@@ -149,59 +124,72 @@ export default function HomePage() {
                 card). Valor SEM centavos (canônico, DECISOES.md) — o nó
                 ainda mostra "R$ 12.450,00", é o Figma que está desatualizado. */}
             <Link href="/patrimonio" className="block transition-[filter] duration-rapido active:brightness-95">
-              <Card tone="dark" radius="card-lg" padding="none" className="relative overflow-hidden p-5">
-                {/* Chevron FORA do flex de conteúdo — de propósito (causa
-                    raiz do aperto de antes: ele dividia espaço com o
-                    conteúdo via justify-between). Absolute, canto inferior
-                    direito, 20px das bordas — não compete com mais nada. */}
-                <CardChevronBadge
-                  borderClass="border-base-50/50"
-                  iconClass="text-base-50/50"
-                  className="absolute bottom-5 right-5 z-10"
-                />
-
-                <div className="relative z-10 flex items-start justify-between gap-4">
-                  <div className="flex flex-col gap-3">
+              <Card tone="dark" radius="card-lg" padding="none" className="relative flex flex-col overflow-hidden p-4">
+                <div className="relative z-10 flex flex-col gap-4 border-b border-[rgba(232,238,242,0.1)] pb-4">
+                  <div className="flex items-start justify-between gap-4">
                     <div className="flex flex-col gap-2">
                       <span className="text-[10px] font-medium uppercase leading-none tracking-[0.04em] text-action">
                         Patrimônio consolidado
                       </span>
-                      <span className="text-h2 text-ink-inverse">{formatBRL(patrimonio)}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-h2 text-ink-inverse">{formatBRL(patrimonio)}</span>
+                        {/* Pill "+R$ 840 este mês" ao lado do valor — o nó
+                            usa fonte 5px (erro de escala do arquivo, mesma
+                            classe de bug já documentada alhures neste
+                            projeto); 10px é o tamanho que a hierarquia do
+                            resto do card sugere, com padding proporcional. */}
+                        <span className="flex h-5 items-center rounded-pill bg-[rgba(234,243,236,0.2)] px-2 text-[10px] font-medium leading-none text-action">
+                          +R$ 840 este mês
+                        </span>
+                      </div>
                     </div>
-                    <span className="text-[12px] font-normal leading-[1.5] text-action">+R$ 840 este mês</span>
-                  </div>
 
-                  {/* Pilha de selos no TOPO à direita — livre agora que o
-                      chevron não divide mais essa coluna com ela. */}
-                  <div className="flex items-center">
-                    {contasVisiveis.map((conta, i) => (
-                      // Selos de 11px (nó 652:2248) — o problema nunca foi
-                      // o overlap (-2px), era o tamanho (chegava a 20px).
-                      // Anel petroleo-700 sobre fundo base-100, nunca
-                      // branco puro (vira halo duro sobre o card escuro).
-                      <span
-                        key={conta.id}
-                        style={{ marginLeft: i === 0 ? 0 : -2 }}
-                        className="flex h-[11px] w-[11px] shrink-0 items-center justify-center overflow-hidden rounded-pill border border-petroleo-700 bg-base-100"
-                      >
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={BANK_LOGO[conta.bancoId]} alt={conta.bancoNome} className="h-full w-full" />
-                      </span>
-                    ))}
-                    {contasExtras > 0 && (
-                      <span
-                        style={{ marginLeft: -2 }}
-                        aria-label={`+${contasExtras} conta${contasExtras === 1 ? "" : "s"}`}
-                        className="flex h-[11px] w-[11px] shrink-0 items-center justify-center rounded-pill border border-petroleo-700 bg-petroleo-500 text-petroleo-50"
-                      >
-                        <IconPlusMini className="h-[6px] w-[6px]" />
-                      </span>
-                    )}
+                    {/* Pilha de selos no TOPO à direita. */}
+                    <div className="flex items-center">
+                      {contasVisiveis.map((conta, i) => (
+                        // Selos de 12px (nó 652:2248) — bg base-200 (não
+                        // base-100, ajustado pra bater com o nó), borda
+                        // petroleo-700 0.75px. O nó pede logo interno 18px
+                        // — maior que o próprio selo, o que só faz sentido
+                        // como "sangria" contida pelo overflow-hidden do
+                        // selo; mantido preenchendo o selo inteiro
+                        // (h-full/w-full) em vez do valor literal, que
+                        // rebentaria a moldura.
+                        <span
+                          key={conta.id}
+                          style={{ marginLeft: i === 0 ? 0 : -2.25 }}
+                          className="flex h-3 w-3 shrink-0 items-center justify-center overflow-hidden rounded-pill border-[0.75px] border-petroleo-700 bg-base-200"
+                        >
+                          {/* eslint-disable-next-line @next/next/no-img-element */}
+                          <img src={BANK_LOGO[conta.bancoId]} alt={conta.bancoNome} className="h-full w-full" />
+                        </span>
+                      ))}
+                      {contasExtras > 0 && (
+                        <span
+                          style={{ marginLeft: -2.25 }}
+                          aria-label={`+${contasExtras} conta${contasExtras === 1 ? "" : "s"}`}
+                          className="flex h-3 w-3 shrink-0 items-center justify-center rounded-pill border-[0.75px] border-petroleo-700 bg-petroleo-500 text-petroleo-50"
+                        >
+                          <IconPlusMini className="h-[6px] w-[6px]" />
+                        </span>
+                      )}
+                    </div>
                   </div>
                 </div>
 
+                <div className="relative z-10 flex justify-end pt-4">
+                  <span className="flex h-3 w-3 shrink-0 items-center justify-center rounded-pill border border-base-50/50">
+                    <ChevronIcon className="h-[6px] w-[6px] -rotate-90 text-base-50/50" />
+                  </span>
+                </div>
+
                 {/* BG Card - Colinas suaves — nó 652:2242, decorativo,
-                    atrás do conteúdo (z-0 vs z-10 do conteúdo acima). */}
+                    atrás do conteúdo (z-0 vs z-10 do conteúdo acima).
+                    Ancorado no rodapé do card (`bottom-0`) em vez do offset
+                    absoluto do nó (top: 89) — o card agora tem uma linha a
+                    mais (chevron em fluxo), então a altura mudou; grudar no
+                    rodapé é o que preserva a intenção visual ("colinas na
+                    base do card") independente da altura final. */}
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
                   src="/decor/bg-card-colinas-suaves.svg"
@@ -212,38 +200,41 @@ export default function HomePage() {
               </Card>
             </Link>
 
-            {/* Card Capacidade Mensal — mesma regra: cartão inteiro tocável +
-                chevron, sem link de texto. */}
+            {/* Card Capacidade Mensal — nó 655:2349 (releitura). Divisória +
+                chevron EM FLUXO abaixo dela (não mais absolute sobreposto
+                ao conteúdo) — cartão inteiro tocável, mesma regra dos
+                outros cards da Home. */}
             <Link href="/capacidade" className="block transition-[filter] duration-rapido active:brightness-95">
-              <Card padding="none" className="relative p-5">
-                {/* Chevron FORA do flex de conteúdo, mesma razão do card
-                    Patrimônio — absolute, canto inferior direito, 20px das
-                    bordas. */}
-                <CardChevronBadge borderClass="border-base-400" iconClass="text-base-400" className="absolute bottom-5 right-5" />
-
-                <div className="flex items-center justify-between gap-6">
-                  <div className="flex flex-col gap-1">
+              <Card padding="none" className="flex flex-col px-5 py-3">
+                <div className="flex items-center justify-between gap-6 border-b border-[rgba(228,224,216,0.5)] pb-4">
+                  <div className="flex w-[117px] flex-col gap-2">
                     <span className="text-[10px] font-medium uppercase leading-none tracking-[0.08em] text-ink-muted">
                       Capacidade mensal
                     </span>
                     <span className="text-h2 text-ink-primary">{formatBRL(sobraTotal)}</span>
-                    <span className="text-[12px] font-light leading-[1.5] text-ink-muted">disponíveis este mês</span>
+                    <span className="text-[12px] font-normal leading-[1.5] text-ink-muted">disponíveis este mês</span>
                   </div>
 
-                  <div className="flex flex-col gap-1">
+                  <div className="flex w-[119px] flex-col items-center gap-1">
                     <div className="flex items-center gap-2">
-                      <span className="h-[6px] w-[6px] rounded-pill bg-sage-400" />
+                      <span className="h-[6px] w-[6px] shrink-0 rounded-pill bg-sage-400" />
                       <span className="text-[12px] font-normal leading-[1.5] text-sage-700">
                         Entra&nbsp;&nbsp;{formatBRL(diagnostico.rendaMensal)}
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <span className="h-[6px] w-[6px] rounded-pill bg-coral-400" />
+                      <span className="h-[6px] w-[6px] shrink-0 rounded-pill bg-coral-400" />
                       <span className="text-[12px] font-normal leading-[1.5] text-coral-500">
                         Sai&nbsp;&nbsp;{formatBRL(gastoTotal)}
                       </span>
                     </div>
                   </div>
+                </div>
+
+                <div className="flex justify-end pt-4">
+                  <span className="flex h-3 w-3 shrink-0 items-center justify-center rounded-pill border border-base-600/60">
+                    <ChevronIcon className="h-[6px] w-[6px] -rotate-90 text-base-600" />
+                  </span>
                 </div>
               </Card>
             </Link>
@@ -306,41 +297,46 @@ export default function HomePage() {
               </div>
 
               {metaPrincipal && (
-                <Card padding="md">
-                  <div className="flex items-end justify-between gap-4">
-                    <div className="flex gap-3">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={META_ICONES[metaPrincipal.icone].src}
-                        alt=""
-                        aria-hidden="true"
-                        className="h-9 w-9 shrink-0"
-                      />
-                      <div className="flex flex-col gap-2">
-                        <div className="flex flex-col gap-1">
-                          <span className="text-button text-ink-primary">{metaPrincipal.titulo}</span>
-                          <span className="text-[10px] font-normal leading-none text-ink-muted">
-                            {formatBRL(metaPrincipal.valorAtual)} de {formatBRL(metaPrincipal.valorAlvo)}
-                          </span>
-                        </div>
-                        <div className={cx("h-[2.5px] w-[126px] overflow-hidden rounded-pill", corMetaPrincipal.track)}>
-                          <div
-                            className={cx("h-full rounded-pill transition-[width] duration-lento ease-padrao", corMetaPrincipal.fill)}
-                            style={{ width: `${Math.min(progressoMeta, 100)}%` }}
-                          />
+                <Link
+                  href={`/metas/${metaPrincipal.id}`}
+                  className="block transition-[filter] duration-rapido active:brightness-95"
+                >
+                  <Card padding="md">
+                    <div className="flex items-end justify-between gap-4">
+                      <div className="flex gap-3">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={META_ICONES[metaPrincipal.icone].src}
+                          alt=""
+                          aria-hidden="true"
+                          className="h-9 w-9 shrink-0"
+                        />
+                        <div className="flex flex-col gap-2">
+                          <div className="flex flex-col gap-1">
+                            <span className="text-button text-ink-primary">{metaPrincipal.titulo}</span>
+                            <span className="text-[10px] font-normal leading-none text-ink-muted">
+                              {formatBRL(metaPrincipal.valorAtual)} de {formatBRL(metaPrincipal.valorAlvo)}
+                            </span>
+                          </div>
+                          <div className={cx("h-[2.5px] w-[126px] overflow-hidden rounded-pill", corMetaPrincipal.track)}>
+                            <div
+                              className={cx("h-full rounded-pill transition-[width] duration-lento ease-padrao", corMetaPrincipal.fill)}
+                              style={{ width: `${Math.min(progressoMeta, 100)}%` }}
+                            />
+                          </div>
                         </div>
                       </div>
+                      <span
+                        className={cx(
+                          "text-[10px] font-medium uppercase leading-none tracking-[0.08em]",
+                          corMetaPrincipal.text,
+                        )}
+                      >
+                        {Math.round(progressoMeta)}%
+                      </span>
                     </div>
-                    <span
-                      className={cx(
-                        "text-[10px] font-medium uppercase leading-none tracking-[0.08em]",
-                        corMetaPrincipal.text,
-                      )}
-                    >
-                      {Math.round(progressoMeta)}%
-                    </span>
-                  </div>
-                </Card>
+                  </Card>
+                </Link>
               )}
             </div>
 

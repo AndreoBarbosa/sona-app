@@ -109,7 +109,10 @@ export default function MetasPage() {
                 tratamento de "R$ 949 livres" → "sem destino" (vocabulário
                 travado, DECISOES.md). */}
             <div className="mx-auto flex w-full max-w-[320px] flex-col items-center gap-9">
-              <div className="aspect-[320/280] w-full">
+              {/* Ilustração ~20% menor que o restante do bloco (era
+                  max-w-[320px], igual ao container) — grande demais na
+                  proporção original, competindo com a headline. */}
+              <div className="aspect-[320/280] w-[80%]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src="/decor/ilustracao-clareza.svg" alt="" aria-hidden="true" className="h-full w-full" />
               </div>
