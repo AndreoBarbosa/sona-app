@@ -8,13 +8,22 @@ import { cx } from "@/lib/cx";
 import { useValorAnimado } from "@/lib/use-valor-animado";
 import { aplicarAjusteLocal, calcularMudancas } from "@/lib/divisao-sobra";
 import { getCorMetaPorIndice, type CorMeta } from "@/lib/cor-meta";
-import { getDataPrevista, formatBRL, formatMesAno, META_ICONES, type Meta } from "@/lib/mock-data";
+import { getDataPrevista, formatBRL, formatMesAno, META_ICONES, calcularPropostaCascata, type Meta } from "@/lib/mock-data";
 
 export interface DivisaoDaSobraEditorProps {
   metasAtivas: Meta[];
   sobraTotal: number;
-  onAceitar: () => void;
+  onAceitar: (propostaFinal: Record<string, number>) => void;
   onSalvar: (aportesEditados: Record<string, number>) => void;
+  /**
+   * Override do que uma meta específica QUER receber, em vez do próprio
+   * `aporteMensal` dela — usado só pela Etapa 3 de Criar meta, pra entrar a
+   * meta recém-criada na cascata com o aporte NECESSÁRIO (calculado do
+   * valor/data escolhidos), não com o clamp provisório que `criarMeta`
+   * aplicou antes desta tela existir. `/metas/divisao` nunca passa isso —
+   * lá toda meta já existente só "quer" o que já tem.
+   */
+  aporteDesejado?: Record<string, number>;
 }
 
 /**
@@ -23,6 +32,15 @@ export interface DivisaoDaSobraEditorProps {
  * Etapa 3 de Criar meta (regra travada: nunca duas implementações paralelas
  * da mesma tela — ver DECISOES.md, "Consistência estrutural das metas").
  *
+ * O modo "proposta" NÃO é mais um espelho passivo do que já está salvo — é a
+ * cascata de verdade (`calcularPropostaCascata`, mock-data.ts: proteção
+ * primeiro, depois metas com prazo por ordem de criação). Bug real que isso
+ * corrige: antes, "Aceitar divisão sugerida" só confirmava o que já estava
+ * gravado (inclusive um aporte 0 que `criarMeta` tinha clampado em silêncio
+ * pra uma meta nova sem espaço sobrando) — agora a proposta é CALCULADA, e
+ * pode inclusive tomar espaço de uma meta de prioridade menor pra garantir
+ * que a nova meta nunca nasça com R$0/mês.
+ *
  * Edição é OTIMISTA-LOCAL: arrastar um slider só muda `aportesEditados`
  * (state deste componente) — nada persiste até `onSalvar` ser chamado. O
  * teto de cada slider é dinâmico (`valorAtual + semDestino`, recalculado a
@@ -30,11 +48,25 @@ export interface DivisaoDaSobraEditorProps {
  * libera espaço pras outras. "Sem destino" nunca é digitado: é sempre
  * `sobraTotal - soma(aportes)`.
  */
-export function DivisaoDaSobraEditor({ metasAtivas, sobraTotal, onAceitar, onSalvar }: DivisaoDaSobraEditorProps) {
+export function DivisaoDaSobraEditor({
+  metasAtivas,
+  sobraTotal,
+  onAceitar,
+  onSalvar,
+  aporteDesejado = {},
+}: DivisaoDaSobraEditorProps) {
   const [modo, setModo] = useState<"proposta" | "ajuste">("proposta");
-  const [aportesEditados, setAportesEditados] = useState<Record<string, number>>(() =>
-    Object.fromEntries(metasAtivas.map((m) => [m.id, m.aporteMensal])),
+
+  const proposta = calcularPropostaCascata(metasAtivas, aporteDesejado, sobraTotal);
+  // Alguém queria mais do que a cascata conseguiu dar (prioridade mais alta
+  // tomou o espaço todo) — "Aceitar divisão sugerida" nunca pode confirmar
+  // silenciosamente uma meta a R$0 (regra travada), então esse caso força
+  // "Ajustar manualmente" em vez de propor um resultado inválido.
+  const propostaZeraAlguem = metasAtivas.some(
+    (m) => proposta[m.id] <= 0 && (aporteDesejado[m.id] ?? m.aporteMensal) > 0,
   );
+
+  const [aportesEditados, setAportesEditados] = useState<Record<string, number>>(() => ({ ...proposta }));
 
   const somaEditada = Object.values(aportesEditados).reduce((a, b) => a + b, 0);
   const semDestinoEditado = Math.max(0, sobraTotal - somaEditada);
@@ -51,10 +83,19 @@ export function DivisaoDaSobraEditor({ metasAtivas, sobraTotal, onAceitar, onSal
   }
 
   function voltarASugestao() {
-    setAportesEditados(Object.fromEntries(metasAtivas.map((m) => [m.id, m.aporteMensal])));
+    setAportesEditados({ ...proposta });
   }
 
   if (modo === "proposta") {
+    // Meta com proposta 0 não entra na barra nem na legenda (não é um
+    // destino de verdade) — filtra DEPOIS de mapear com o índice original,
+    // pra cor de cada meta continuar batendo com o resto do app (MetaCard,
+    // detalhe) mesmo quando uma é excluída daqui.
+    const semDestinoProposta = Math.max(0, sobraTotal - Object.values(proposta).reduce((a, b) => a + b, 0));
+    const segmentos = metasAtivas
+      .map((m, i) => ({ id: m.id, titulo: m.titulo, valor: proposta[m.id] ?? 0, cor: getCorMetaPorIndice(i) }))
+      .filter((s) => s.valor > 0);
+
     return (
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-3 rounded-card border border-border bg-white px-5 py-6">
@@ -63,38 +104,38 @@ export function DivisaoDaSobraEditor({ metasAtivas, sobraTotal, onAceitar, onSal
           </span>
 
           <div className="flex h-[10px] w-full overflow-hidden rounded-[5px]">
-            {metasAtivas.map((m, i) => (
+            {segmentos.map((s) => (
               <div
-                key={m.id}
-                className={cx(getCorMetaPorIndice(i).fill, "transition-[width] duration-lento ease-padrao")}
-                style={{ width: `${sobraTotal > 0 ? (m.aporteMensal / sobraTotal) * 100 : 0}%` }}
+                key={s.id}
+                className={cx(s.cor.fill, "transition-[width] duration-lento ease-padrao")}
+                style={{ width: `${sobraTotal > 0 ? (s.valor / sobraTotal) * 100 : 0}%` }}
               />
             ))}
-            {semDestinoEditado > 0 && (
+            {semDestinoProposta > 0 && (
               <div
                 className="bg-base-400 transition-[width] duration-lento ease-padrao"
-                style={{ width: `${(semDestinoEditado / sobraTotal) * 100}%` }}
+                style={{ width: `${(semDestinoProposta / sobraTotal) * 100}%` }}
               />
             )}
           </div>
 
           <div className="flex flex-col gap-2">
-            {metasAtivas.map((m, i) => {
-              const pct = sobraTotal > 0 ? Math.round((m.aporteMensal / sobraTotal) * 100) : 0;
+            {segmentos.map((s) => {
+              const pct = sobraTotal > 0 ? Math.round((s.valor / sobraTotal) * 100) : 0;
               return (
-                <div key={m.id} className="flex items-center gap-1.5">
-                  <span className={cx("h-2 w-2 shrink-0 rounded-pill", getCorMetaPorIndice(i).fill)} />
+                <div key={s.id} className="flex items-center gap-1.5">
+                  <span className={cx("h-2 w-2 shrink-0 rounded-pill", s.cor.fill)} />
                   <span className="text-[12px] font-normal leading-[1.5] text-base-800">
-                    {m.titulo} {pct}% · {formatBRL(m.aporteMensal)}
+                    {s.titulo} {pct}% · {formatBRL(s.valor)}
                   </span>
                 </div>
               );
             })}
-            {semDestinoEditado > 0 && (
+            {semDestinoProposta > 0 && (
               <div className="flex items-center gap-1.5">
                 <span className="h-2 w-2 shrink-0 rounded-pill bg-base-400" />
                 <span className="text-[12px] font-normal leading-[1.5] text-ink-muted">
-                  Sem destino {Math.round((semDestinoEditado / sobraTotal) * 100)}% · {formatBRL(semDestinoEditado)}
+                  Sem destino {Math.round((semDestinoProposta / sobraTotal) * 100)}% · {formatBRL(semDestinoProposta)}
                 </span>
               </div>
             )}
@@ -103,7 +144,14 @@ export function DivisaoDaSobraEditor({ metasAtivas, sobraTotal, onAceitar, onSal
 
         <div className="flex flex-col gap-3">
           {metasAtivas.map((m, i) => (
-            <MetaAporteCard key={m.id} meta={m} cor={getCorMetaPorIndice(i)} valor={m.aporteMensal} sobraTotal={sobraTotal} interativo={false} />
+            <MetaAporteCard
+              key={m.id}
+              meta={m}
+              cor={getCorMetaPorIndice(i)}
+              valor={proposta[m.id] ?? 0}
+              sobraTotal={sobraTotal}
+              interativo={false}
+            />
           ))}
         </div>
 
@@ -123,8 +171,20 @@ export function DivisaoDaSobraEditor({ metasAtivas, sobraTotal, onAceitar, onSal
           Nada sai da sua conta. O Sona apenas organiza o destino da sua sobra.
         </p>
 
+        {propostaZeraAlguem && (
+          <p className="text-center text-[12px] font-normal leading-[1.5] text-coral-500">
+            Não sobra espaço pra todo mundo nessa sugestão — ajuste manualmente pra decidir você mesmo.
+          </p>
+        )}
+
         <div className="flex flex-col gap-2">
-          <Button variant="tertiary" label="Aceitar divisão sugerida" fullWidth onClick={onAceitar} />
+          <Button
+            variant="tertiary"
+            label="Aceitar divisão sugerida"
+            fullWidth
+            disabled={propostaZeraAlguem}
+            onClick={() => onAceitar(proposta)}
+          />
           <Button variant="ghost" label="Ajustar manualmente" fullWidth onClick={() => setModo("ajuste")} />
         </div>
       </div>

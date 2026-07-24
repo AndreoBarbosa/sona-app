@@ -843,12 +843,38 @@ export function editarMeta(
 }
 
 /**
+ * Confirma o PRIMEIRO aporte de uma meta recém-criada: a alocação da sobra é
+ * reserva VIRTUAL e acontece no ato da criação — "guardado até agora" NUNCA
+ * pode mostrar R$0/0% enquanto a Atividade já lista o aporte do mês corrente
+ * como reservado (contradição real encontrada: "Guardado R$0" + "Julho ·
+ * R$949 reservados" na mesma tela). Chamada uma ÚNICA vez, no momento em que
+ * o aporte final da meta é decidido de verdade — criação simples (sem outras
+ * metas pra dividir) OU depois que a Divisão da Sobra confirma o valor final
+ * — nunca a cada arrasto de slider durante a decisão (por isso o guard
+ * `valorAtual === 0`: só a meta que ainda não tem NENHUM progresso
+ * registrado é tocada; metas maduras — preset ou reais — nunca são mexidas
+ * aqui). Não escreve `aporteMensal` — lê o que `ajustarAporteMeta` já
+ * decidiu, a mesma fonte única de sempre.
+ */
+export function confirmarPrimeiroAporte(metasList: Meta[], metaId: string): Meta[] {
+  return metasList.map((m) => (m.id === metaId && m.valorAtual === 0 ? { ...m, valorAtual: m.aporteMensal } : m));
+}
+
+/**
  * Cria uma meta nova, ATIVA, com `valorAtual` 0 (nada guardado ainda) e
  * prioridade de cascata no fim da fila. `id` vem de fora (o Provider gera e
  * usa o mesmo id pra navegar pro detalhe assim que criar). O aporte inicial
  * passa por `ajustarAporteMeta` — não é escrito direto — pra nunca duplicar o
  * clamp ao teto de sobra sem destino: mesma fonte única de verdade que
  * Editar meta e /metas/divisao usam.
+ *
+ * `valorAtual` fica 0 aqui DE PROPÓSITO, mesmo quando a meta não precisa de
+ * Divisão da Sobra: o aporte que `criarMeta` recebe pode ainda ser só um
+ * clamp provisório (se existirem outras metas ativas, a Divisão pode mudar
+ * esse número antes da meta "existir" de verdade pro usuário — ver Etapa 3
+ * de Criar meta). `confirmarPrimeiroAporte` é chamada à parte, só quando o
+ * aporte final é conhecido — nunca aqui, pra não guardar um valor que a
+ * Divisão ainda vai substituir.
  */
 export function criarMeta(
   metasList: Meta[],
@@ -875,22 +901,47 @@ export function criarMeta(
 }
 
 /**
- * PLACEHOLDER — ainda não implementado.
+ * Proposta de divisão da sobra em CASCATA — reserva/proteção sempre primeiro,
+ * depois metas com prazo por ordem de criação (`prioridadeCascata`). Única
+ * fonte da "sugestão do Sona": usada tanto por `/metas/divisao` (rebalancear
+ * metas já existentes) quanto pela Etapa 3 de Criar meta (uma meta nova
+ * entra na disputa pela sobra) — nunca duas contas paralelas pro mesmo
+ * conceito (`DivisaoDaSobraEditor`, modo "proposta").
  *
- * Quando o usuário aumenta a sobra sem destino (ex.: reduz gasto em uma categoria)
- * ou pede pra alocar manualmente, a lógica de cascata entra aqui:
- *   1. Ordenar metas ativas por `prioridadeCascata` (reserva sempre primeiro).
- *   2. Preencher a reserva até `valorAlvo` antes de tocar em qualquer meta
- *      com prazo.
- *   3. Distribuir o restante da sobra sem destino pelas metas seguintes, respeitando
- *      a ordem.
- * Por enquanto só a assinatura existe, pra deixar claro onde isso entra:
+ * `desejado` é o que cada meta QUER receber: pra uma meta já existente, isso
+ * é o próprio `aporteMensal` atual dela — ela não pede mais do que já tinha,
+ * só corre o risco de ceder espaço pra alguém de prioridade maior. Pra uma
+ * meta sendo criada agora, é o aporte NECESSÁRIO calculado a partir do
+ * valor/data escolhidos pelo usuário, ainda sem nenhum clamp — é esse número
+ * cru que decide se ela precisa "brigar" por espaço com as metas que já
+ * existem. Metas fora de `desejado` caem no fallback (`m.aporteMensal`).
+ *
+ * A soma do resultado NUNCA passa de `sobraTotal`: cada meta, na ordem de
+ * prioridade, recebe o quanto quer até o que sobra depois de quem veio
+ * antes — uma meta de prioridade mais alta PODE tomar espaço de uma de
+ * prioridade menor que já tinha aporte (é assim que a cascata funciona:
+ * proteção antes de aspiração), nunca o contrário.
  */
-export function alocarSobraDisponivel(
-  _metasList: Meta[],
-  _valorDisponivel: number
-): Meta[] {
-  throw new Error("alocarSobraDisponivel ainda não implementado — ver comentário acima.");
+export function calcularPropostaCascata(
+  metasAtivas: Meta[],
+  desejado: Record<string, number>,
+  sobraTotal: number,
+): Record<string, number> {
+  const ordenadas = [...metasAtivas].sort((a, b) => {
+    if (a.categoria !== b.categoria) return a.categoria === "reserva" ? -1 : 1;
+    return a.prioridadeCascata - b.prioridadeCascata;
+  });
+
+  let usado = 0;
+  const proposta: Record<string, number> = {};
+  for (const m of ordenadas) {
+    const quer = Math.max(0, desejado[m.id] ?? m.aporteMensal);
+    const disponivel = Math.max(0, sobraTotal - usado);
+    const dado = Math.min(quer, disponivel);
+    proposta[m.id] = dado;
+    usado += dado;
+  }
+  return proposta;
 }
 
 // ============================================================================

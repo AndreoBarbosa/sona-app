@@ -61,13 +61,19 @@ const DESCRICAO_TEMPLATE: Record<MetaIconeId, string> = {
  *      sem culpa nem alarme (ver `MetaChegadaCard`), o app nunca impede a
  *      criação por causa disso.
  *   3) Divisão da sobra — SÓ aparece se já existe outra meta ativa (a sobra
- *      precisa ser repartida entre elas); reusa `DivisaoDaSobraEditor`, o
- *      MESMO editor de `/metas/divisao` (regra travada: nunca duas
- *      implementações da mesma tela). Se esta é a PRIMEIRA meta do usuário,
- *      pula direto pra etapa 4 — não há com o que repartir. É também aqui
- *      que o caso "aporte necessário > sobra sem destino" se resolve: em vez
- *      de bloquear a criação, o fluxo LEVA pra esta etapa, onde o
- *      trade-off entre metas pode ser resolvido nos sliders.
+ *      precisa ser repartida entre elas, SEMPRE, independente de como se
+ *      chegou nesta tela — inclusive vindo de `?primeiraMeta=1`: esse flag
+ *      só decide a Etapa 0, nunca se a divisão é necessária); reusa
+ *      `DivisaoDaSobraEditor`, o MESMO editor de `/metas/divisao` (regra
+ *      travada: nunca duas implementações da mesma tela), passando o aporte
+ *      NECESSÁRIO da meta nova via `aporteDesejado` — a proposta é a cascata
+ *      de verdade (`calcularPropostaCascata`), nunca um espelho do clamp
+ *      provisório que `criarMeta` aplicou. Se esta é a PRIMEIRA meta do
+ *      usuário, pula direto pra etapa 4 — não há com o que repartir. É
+ *      também aqui que o caso "aporte necessário > sobra sem destino" se
+ *      resolve: em vez de bloquear a criação, o fluxo LEVA pra esta etapa,
+ *      onde o trade-off entre metas é resolvido (proposta ou sliders) —
+ *      nunca uma meta nasce com R$0/mês em silêncio (regra travada).
  *   4) Modal de conclusão (Nível 1, nós 732:2724 "aceitou a proposta" /
  *      848:3544 "ajustou manualmente" — as duas variantes compartilham o
  *      mesmo título "Meta criada." no Figma; a diferença vive só no corpo).
@@ -84,7 +90,7 @@ export default function NovaMetaPage() {
 
 function NovaMetaConteudo() {
   const router = useRouter();
-  const { metas, criarMeta, ajustarAporte } = useMetas();
+  const { metas, criarMeta, ajustarAporte, confirmarPrimeiroAporte } = useMetas();
   const { marcarPrimeiraMetaCriada } = useDemoStore();
   const primeiraMeta = useSearchParams().get("primeiraMeta") === "1";
 
@@ -173,26 +179,35 @@ function NovaMetaConteudo() {
     setNovaMetaId(id);
     if (primeiraMeta) marcarPrimeiraMetaCriada();
 
-    if (outrasAtivas.length > 0 && !primeiraMeta) {
+    if (outrasAtivas.length > 0) {
       // Já existe outra meta ativa: a sobra precisa ser repartida entre
-      // elas — inclusive quando o aporte necessário não coube no teto
-      // (resultado.cabeNoPlano === false), é aqui que esse trade-off se
-      // resolve, nunca bloqueando a criação em si.
-      //
-      // `!primeiraMeta` é a exceção: quem chega via `?primeiraMeta=1` (do
-      // primeiro diagnóstico) está escolhendo A meta, não repartindo entre
-      // várias — mesmo que a Reserva/Viagem canônicas já existam no mock,
-      // pra essa pessoa não há "sobra a repartir" a mostrar. Pula direto
-      // pra conclusão, como pedido.
+      // elas, SEMPRE — inclusive quando o aporte necessário não coube no
+      // teto (resultado.cabeNoPlano === false). É aqui que esse trade-off se
+      // resolve (via a proposta em cascata ou ajuste manual), nunca
+      // bloqueando nem clampando a criação em silêncio. `valorAtual` da meta
+      // nova só é confirmado depois que essa tela decide o aporte final
+      // (ver `aceitarSugestao`/`salvarDivisao` abaixo) — nunca aqui.
       setEtapa(3);
     } else {
-      // Primeira meta do usuário: não há com o que repartir, pula direto
-      // pra conclusão.
+      // Primeira meta do usuário: não há com o que repartir. O aporte já é
+      // o final (`resultado.aporteFinal`, sem mais nenhuma tela no meio) —
+      // confirma o primeiro aporte agora, senão "guardado" ficaria 0 numa
+      // meta que já tem R$/mês comprometido (contradição real encontrada
+      // entre o card de progresso e a Atividade).
+      confirmarPrimeiroAporte(id);
       setConclusao("simples");
     }
   }
 
-  function aceitarSugestao() {
+  function aceitarSugestao(propostaFinal: Record<string, number>) {
+    for (const m of metasAtivasParaDivisao) {
+      const novoValor = propostaFinal[m.id];
+      if (novoValor !== undefined && novoValor !== m.aporteMensal) {
+        ajustarAporte(m.id, novoValor);
+      }
+    }
+    if (novaMetaId) confirmarPrimeiroAporte(novaMetaId);
+    setAportesFinais(propostaFinal);
     setConclusao("aceitar");
   }
 
@@ -203,6 +218,7 @@ function NovaMetaConteudo() {
         ajustarAporte(m.id, novoValor);
       }
     }
+    if (novaMetaId) confirmarPrimeiroAporte(novaMetaId);
     setAportesFinais(aportesEditados);
     setConclusao("salvar");
   }
@@ -362,6 +378,7 @@ function NovaMetaConteudo() {
               sobraTotal={sobraTotal}
               onAceitar={aceitarSugestao}
               onSalvar={salvarDivisao}
+              aporteDesejado={novaMetaId ? { [novaMetaId]: resultado.aporteNecessario } : undefined}
             />
           )}
         </main>

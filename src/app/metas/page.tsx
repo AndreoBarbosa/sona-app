@@ -45,6 +45,12 @@ import { getMetasAtivas, getSobraTotal, getSobraSemDestino, formatBRL, type Meta
  * as metas usam `base-800`. Larguras sempre somam 100%, sempre calculadas
  * dos selectors — nunca fixas.
  *
+ * Meta com `aporteMensal` 0 (não deveria acontecer numa meta recém-criada —
+ * ver regra em `criarMeta`/Divisão da Sobra — mas pode acontecer numa já
+ * existente ajustada manualmente pro chão) NÃO entra na barra nem na
+ * legenda: não é um destino de verdade da sobra. O headline dinâmico
+ * (`destinoTexto`) conta a mesma coisa — só metas com aporte ativo.
+ *
  * Cor de cada faixa/bolinha vem de `getCorMetaPorIndice(i)` (ver
  * `lib/cor-meta.ts`) — série determinística por ORDEM DA CASCATA
  * (`metasAtivas` já vem ordenada assim), não por categoria. É a MESMA cor
@@ -68,17 +74,20 @@ export default function MetasPage() {
   // Home e na Capacidade, as 3 telas precisam contar juntas.
   const sobraSemDestinoAnimada = useValorAnimado(sobraSemDestino);
 
-  const qtdDestinos = metasAtivas.length;
+  const metasComAporte = metasAtivas.filter((m) => m.aporteMensal > 0);
+  const qtdDestinos = metasComAporte.length;
   const destinoTexto = `${NUMERO_EXTENSO[qtdDestinos] ?? qtdDestinos} destino${qtdDestinos === 1 ? "" : "s"}.`;
 
-  const segmentosMetas = metasAtivas.map((m, i) => ({
-    key: m.id,
-    label: m.titulo,
-    valor: m.aporteMensal,
-    pct: sobraTotal > 0 ? (m.aporteMensal / sobraTotal) * 100 : 0,
-    cor: getCorMetaPorIndice(i),
-    textoLegenda: "text-base-800",
-  }));
+  const segmentosMetas = metasAtivas
+    .map((m, i) => ({
+      key: m.id,
+      label: m.titulo,
+      valor: m.aporteMensal,
+      pct: sobraTotal > 0 ? (m.aporteMensal / sobraTotal) * 100 : 0,
+      cor: getCorMetaPorIndice(i),
+      textoLegenda: "text-base-800",
+    }))
+    .filter((s) => s.valor > 0);
 
   const segmentoSemDestino =
     sobraSemDestino > 0

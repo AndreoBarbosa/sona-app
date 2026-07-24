@@ -39,6 +39,8 @@ import { getMetasAtivas, getSobraTotal, formatBRL } from "@/lib/mock-data";
  * texto) — "dois destinos" era hardcoded aqui, sobrevivência de quando o
  * app sempre tinha exatamente 2 metas canônicas; com metas começando
  * zeradas isso podia mentir (ex. dizer "dois destinos" com zero metas).
+ * Conta só metas com aporte ATIVO (`aporteMensal > 0`) — uma meta a R$0
+ * (ex. ajustada manualmente pro chão) não é um destino de verdade da sobra.
  */
 const NUMERO_EXTENSO = ["zero", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove", "dez"];
 
@@ -48,7 +50,7 @@ export default function DivisaoDaSobraPage() {
 
   const metasAtivas = getMetasAtivas(metas);
   const sobraTotal = getSobraTotal();
-  const qtdDestinos = metasAtivas.length;
+  const qtdDestinos = metasAtivas.filter((m) => m.aporteMensal > 0).length;
   const destinoTexto = `${NUMERO_EXTENSO[qtdDestinos] ?? qtdDestinos} destino${qtdDestinos === 1 ? "" : "s"}.`;
 
   const [confirmacao, setConfirmacao] = useState<"aceitar" | "salvar" | null>(null);
@@ -68,7 +70,13 @@ export default function DivisaoDaSobraPage() {
     setConfirmacao("salvar");
   }
 
-  function aceitarSugestao() {
+  function aceitarSugestao(propostaFinal: Record<string, number>) {
+    for (const m of metasAtivas) {
+      const novoValor = propostaFinal[m.id];
+      if (novoValor !== undefined && novoValor !== m.aporteMensal) {
+        ajustarAporte(m.id, novoValor);
+      }
+    }
     setConfirmacao("aceitar");
   }
 

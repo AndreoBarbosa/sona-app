@@ -8,6 +8,7 @@ import {
   excluirMeta as excluirMetaPura,
   concluirMeta as concluirMetaPura,
   ajustarAporteMeta as ajustarAporteMetaPura,
+  confirmarPrimeiroAporte as confirmarPrimeiroAportePura,
   editarMeta as editarMetaPura,
   criarMeta as criarMetaPura,
   simularDivergencia as simularDivergenciaPura,
@@ -41,6 +42,11 @@ interface MetasContextValue {
   pausarMeta: (id: string) => void;
   retomarMeta: (id: string) => void;
   ajustarAporte: (id: string, novoAporte: number) => void;
+  /** Confirma o primeiro aporte de uma meta recém-criada (`valorAtual` passa
+   *  a bater com `aporteMensal`) — chamada uma única vez, no momento em que
+   *  o aporte final é decidido de verdade (ver `confirmarPrimeiroAporte`,
+   *  mock-data.ts). Nunca usada fora do fluxo de Criar meta. */
+  confirmarPrimeiroAporte: (id: string) => void;
   editarMeta: (id: string, patch: { titulo?: string; valorAlvo?: number; icone?: MetaIconeId }) => void;
   criarMeta: (input: {
     titulo: string;
@@ -88,6 +94,10 @@ export function MetasProvider({ children }: { children: ReactNode }) {
 
   const ajustarAporte = useCallback((id: string, novoAporte: number) => {
     setMetas((atual) => ajustarAporteMetaPura(atual, id, novoAporte));
+  }, [setMetas]);
+
+  const confirmarPrimeiroAporte = useCallback((id: string) => {
+    setMetas((atual) => confirmarPrimeiroAportePura(atual, id));
   }, [setMetas]);
 
   const editarMeta = useCallback(
@@ -143,6 +153,7 @@ export function MetasProvider({ children }: { children: ReactNode }) {
         pausarMeta,
         retomarMeta,
         ajustarAporte,
+        confirmarPrimeiroAporte,
         editarMeta,
         criarMeta,
         simularDivergencia,

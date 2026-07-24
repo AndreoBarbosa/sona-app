@@ -21,13 +21,15 @@ import {
  * DETERMINÍSTICO de propósito (nunca `Math.random`) — é uma ferramenta de
  * demonstração, precisa ser repetível: o mesmo clique tem que produzir o
  * mesmo resultado toda vez, senão vira sorte, não um cenário reproduzível
- * (mesmo raciocínio de `BANCO_COM_FALHA_ID`). R$400 é o próprio exemplo
- * pedido (Viagem 3.800 → saldo real 3.400); metas menores usam metade do
- * valor guardado, pra nunca zerar a diferença (o que faria a meta parar de
- * ler como divergente).
+ * (mesmo raciocínio de `BANCO_COM_FALHA_ID`). PROPORCIONAL ao guardado da
+ * PRÓPRIA meta (25%) — precisa funcionar em qualquer meta, inclusive as
+ * criadas pelo usuário, não só no cenário Fernanda; um valor fixo (ex. R$400,
+ * o que a Viagem da Fernanda "coincidentemente" precisava) não faz sentido
+ * pra uma meta de R$50 guardados. `Math.max(1, ...)` garante que a diferença
+ * nunca zera (o que faria a meta parar de ler como divergente).
  */
 function calcularSaldoDivergente(valorAtual: number): number {
-  const diferenca = valorAtual >= 400 ? 400 : Math.max(1, Math.round(valorAtual * 0.5));
+  const diferenca = Math.max(1, Math.round(valorAtual * 0.25));
   return Math.max(0, valorAtual - diferenca);
 }
 

@@ -36,6 +36,18 @@ TODA e QUALQUER meta, sem exceção:
 
 - Excluir ou pausar uma meta devolve o aporte para a sobra sem destino
 - Toda meta ativa exibe "Excluir meta" na tela de detalhe (ver regra master acima)
+- **Alocação é reserva VIRTUAL e acontece no ato da criação.** Ao criar uma meta com R$X/mês, o
+  primeiro aporte é imediato — `valorAtual` nunca fica em R$0/0% enquanto a Atividade já lista
+  esse mês como reservado (contradição real já encontrada e corrigida). `confirmarPrimeiroAporte`
+  (mock-data.ts) faz isso uma única vez, só quando o aporte final é conhecido de verdade — depois
+  da Divisão da Sobra, quando ela entra no meio.
+- **Nenhuma meta pode ser criada com aporte R$0.** Se o aporte necessário não couber na sobra sem
+  destino disponível e já existir outra meta ativa, o fluxo de Criar meta é OBRIGADO a passar pela
+  Divisão da Sobra — nunca clampa em silêncio. A proposta ali é a cascata de verdade
+  (`calcularPropostaCascata`, mock-data.ts: proteção primeiro, depois metas com prazo por ordem de
+  criação) — pode tomar espaço de uma meta de prioridade menor pra garantir que a nova nunca nasça
+  zerada. Meta com `aporteMensal` 0 nunca entra na barra/legenda do plano nem no headline dinâmico
+  de contagem de destinos (não é um destino de verdade da sobra).
 
 ## Valores canônicos
 
