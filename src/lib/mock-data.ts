@@ -179,6 +179,11 @@ export const diagnostico: Diagnostico = {
   scores: {
     folga: 75,
     estabilidade: 70,
+    // Valor de repouso deste objeto estático — quem lê o score de verdade
+    // (Home, Diagnóstico) substitui por `getProtecaoScore(patrimonio,
+    // gastoTotal)` a cada render, nunca este literal. Fica 80 aqui só
+    // porque é o que os 5 bancos canônicos somados produzem (patrimônio
+    // 24.500 → ~84, arredondado pro valor histórico deste case).
     protecao: 80,
   },
 };
@@ -249,7 +254,25 @@ export const categorias: Categoria[] = [
   },
 ];
 
-export const metas: Meta[] = [
+/**
+ * Metas são o que a PESSOA cria, nunca dado pré-carregado — a interface
+ * representa exatamente o estado que ela mesma gerou. Estado inicial real
+ * do produto é sempre `[]`; as duas metas "maduras" que existiam aqui antes
+ * (Reserva + Viagem) viraram só um preset de demonstração — ver
+ * `METAS_CENARIO_FERNANDA` — carregável pelo painel de QA (`/qa`), nunca
+ * o estado padrão de quem abre o app pela primeira vez.
+ */
+export const metas: Meta[] = [];
+
+/**
+ * Preset "Cenário Fernanda" — duas metas maduras com histórico fictício,
+ * carregável em `/qa` pra demonstrar estados que uma conta nova não tem
+ * ainda (atividade de vários meses, sobra parcialmente distribuída). São os
+ * MESMOS números que já eram canônicos neste projeto antes da mudança pra
+ * "conta nova começa zerada" — preservados aqui como o cenário de demo, não
+ * mais como o estado inicial.
+ */
+export const METAS_CENARIO_FERNANDA: Meta[] = [
   {
     id: "meta-reserva",
     titulo: "Reserva de emergência",
@@ -373,9 +396,24 @@ export function getSobraTotal(): number {
   return diagnostico.rendaMensal - getGastoTotal();
 }
 
-/** Soma dos saldos de todas as contas conectadas via Open Finance. */
-export function getPatrimonioTotal(): number {
-  return contas.reduce((soma, c) => soma + c.saldo, 0);
+/**
+ * Contas efetivamente conectadas — `contas` é o catálogo de TODAS as contas
+ * que existem no mock (com saldo definido); `bancosConectados` (estado real,
+ * escolhido em `/conectar`) é o filtro. Um banco escolhido em `/conectar`
+ * que não tem conta correspondente aqui (ex.: Santander, Inter — existem só
+ * na grade de seleção, `lib/bancos.ts`, pra variedade/pro caminho de erro)
+ * simplesmente não contribui saldo — não é um bug, é um banco sem dado
+ * mockado. Ordenada por saldo desc (mais relevante primeiro).
+ */
+export function getContasConectadas(bancosConectados: string[]): Conta[] {
+  return contas.filter((c) => bancosConectados.includes(c.bancoId)).sort((a, b) => b.saldo - a.saldo);
+}
+
+/** Soma dos saldos das contas que a pessoa efetivamente conectou — nunca
+ *  "todas as contas do mock", senão conectar 1 banco já mostraria o
+ *  patrimônio inteiro. */
+export function getPatrimonioTotal(bancosConectados: string[]): number {
+  return getContasConectadas(bancosConectados).reduce((soma, c) => soma + c.saldo, 0);
 }
 
 /**
@@ -557,6 +595,21 @@ export function calcularChegada(
     dataRealista,
     entradaInsana,
   };
+}
+
+/**
+ * Score de proteção — DERIVADO do patrimônio conectado, nunca um número
+ * fixo (conectar mais banco tem que mudar o score de verdade, prova de que
+ * o cálculo é real, não decoração). Heurística: meses de gasto que o
+ * patrimônio cobre, contra a meta clássica de reserva de emergência de 6
+ * meses — 100% de proteção = patrimônio cobre 6 meses de gasto ou mais.
+ * `folga` e `estabilidade` continuam fixos (renda/gastos são canônicos
+ * independente de qual banco foi conectado — só o patrimônio varia).
+ */
+export function getProtecaoScore(patrimonio: number, gastoTotal: number): number {
+  if (gastoTotal <= 0) return 0;
+  const mesesCobertos = patrimonio / gastoTotal;
+  return Math.max(0, Math.min(100, Math.round((mesesCobertos / 6) * 100)));
 }
 
 /** Média ponderada: folga 40%, estabilidade 30%, proteção 30%. */

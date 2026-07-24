@@ -44,13 +44,14 @@ const PROBABILIDADE_DISPARO = 0.4;
 
 interface DemoContextValue {
   perfil: Perfil;
-  /** Falso até a primeira vez que um nome REAL é conhecido (cadastro, login
-   *  social simulado, ou a pergunta condicional do onboarding) — não é o
-   *  mesmo que "perfil.nome existe" (o valor canônico "Fernanda Souza"
-   *  sempre existe). Onboarding usa isto pra decidir se ainda precisa
-   *  perguntar o nome, ou se já foi respondido em outro lugar. */
-  nomeConhecido: boolean;
   renomear: (nome: string) => void;
+  /** Ids de banco (`lib/bancos.ts`) que a pessoa efetivamente conectou em
+   *  /conectar — não existe "conta pré-conectada": começa vazio, só cresce
+   *  por uma ação real da pessoa (ou pelo preset de QA). Patrimônio, score
+   *  de proteção e a pilha de selos da Home leem daqui, nunca de "todas as
+   *  contas do mock". */
+  bancosConectados: string[];
+  conectarBancos: (ids: string[]) => void;
   historicoForcadoVazio: boolean;
   zerarHistorico: () => void;
   restaurarHistorico: () => void;
@@ -69,7 +70,7 @@ export function DemoProvider({ children }: { children: ReactNode }) {
   // aqui antes (4 efeitos de leitura + 4 de gravação disputando a mesma
   // montagem) — ver comentário na definição, em lib/persist.ts.
   const [perfil, setPerfil] = usePersistedState<Perfil>(CHAVES.perfil, perfilCanonico);
-  const [nomeConhecido, setNomeConhecido] = usePersistedState(CHAVES.nomeConhecido, false);
+  const [bancosConectados, setBancosConectados] = usePersistedState<string[]>(CHAVES.bancosConectados, []);
   const [historicoForcadoVazio, setHistoricoForcadoVazio] = usePersistedState(CHAVES.historicoForcadoVazio, false);
   const [sobraAjusteQA, setSobraAjusteQA] = usePersistedState<SobraAjusteQA | null>(CHAVES.sobraAjusteQA, null);
   const [reconciliacao, setReconciliacao] = usePersistedState<ReconciliacaoState>(
@@ -82,9 +83,13 @@ export function DemoProvider({ children }: { children: ReactNode }) {
       const limpo = nome.trim();
       if (!limpo) return;
       setPerfil((atual) => ({ ...atual, nome: limpo }));
-      setNomeConhecido(true);
     },
-    [setPerfil, setNomeConhecido],
+    [setPerfil],
+  );
+
+  const conectarBancos = useCallback(
+    (ids: string[]) => setBancosConectados(ids),
+    [setBancosConectados],
   );
 
   const zerarHistorico = useCallback(() => setHistoricoForcadoVazio(true), [setHistoricoForcadoVazio]);
@@ -162,23 +167,24 @@ export function DemoProvider({ children }: { children: ReactNode }) {
 
   const resetarDemo = useCallback(() => {
     limpar(CHAVES.perfil);
-    limpar(CHAVES.nomeConhecido);
+    limpar(CHAVES.bancosConectados);
     limpar(CHAVES.historicoForcadoVazio);
     limpar(CHAVES.sobraAjusteQA);
     limpar(CHAVES.reconciliacao);
     setPerfil(perfilCanonico);
-    setNomeConhecido(false);
+    setBancosConectados([]);
     setHistoricoForcadoVazio(false);
     setSobraAjusteQA(null);
     setReconciliacao(RECONCILIACAO_INICIAL);
-  }, [setPerfil, setNomeConhecido, setHistoricoForcadoVazio, setSobraAjusteQA, setReconciliacao]);
+  }, [setPerfil, setBancosConectados, setHistoricoForcadoVazio, setSobraAjusteQA, setReconciliacao]);
 
   return (
     <DemoContext.Provider
       value={{
         perfil,
-        nomeConhecido,
         renomear,
+        bancosConectados,
+        conectarBancos,
         historicoForcadoVazio,
         zerarHistorico,
         restaurarHistorico,

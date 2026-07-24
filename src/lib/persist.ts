@@ -15,7 +15,14 @@ import { useEffect, useRef, useState, type Dispatch, type SetStateAction } from 
  * montado (useEffect), pra nunca divergir do HTML que o servidor mandou.
  */
 
-const PREFIXO = "sona:v1:";
+/**
+ * v2: o modelo de dados mudou de fundo (metas começam vazias, bancos
+ * conectados viram estado, score passa a derivar do patrimônio) — sessões
+ * v1 (inclusive qualquer uma corrompida por bugs já corrigidos) precisam
+ * sumir sozinhas em vez de serem reidratadas com um formato que não bate
+ * mais com o código atual.
+ */
+const PREFIXO = "sona:v2:";
 
 export function carregar<T>(chave: string): T | null {
   if (typeof window === "undefined") return null;
@@ -45,7 +52,7 @@ export function limpar(chave: string): void {
 export const CHAVES = {
   metas: "metas",
   perfil: "perfil",
-  nomeConhecido: "nome-conhecido",
+  bancosConectados: "bancos-conectados",
   historicoForcadoVazio: "historico-forcado-vazio",
   sobraAjusteQA: "sobra-ajuste-qa",
   reconciliacao: "reconciliacao",

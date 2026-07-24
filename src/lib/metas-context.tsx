@@ -55,9 +55,13 @@ interface MetasContextValue {
   /** QA — força `valorAtual` a um valor (ex.: o próprio `valorAlvo`), pra
    *  testar a tela de Meta concluída sem esperar meses de aporte reais. */
   forcarValorAtual: (id: string, valor: number) => void;
-  /** QA/reset do modo demo — volta pro array canônico da Fernanda (Reserva +
-   *  Europa) e limpa a chave persistida, sem esperar um reload. */
+  /** QA/reset do modo demo — volta pro estado inicial real do produto
+   *  (`[]`, ninguém começa com metas pré-carregadas) e limpa a chave
+   *  persistida, sem esperar um reload. */
   resetarMetas: () => void;
+  /** QA — substitui a lista inteira por um preset (ex.: `METAS_CENARIO_FERNANDA`,
+   *  ver `/qa`) — nunca chamada por um fluxo de produto real. */
+  carregarMetas: (novasMetas: Meta[]) => void;
 }
 
 const MetasContext = createContext<MetasContextValue | null>(null);
@@ -129,6 +133,8 @@ export function MetasProvider({ children }: { children: ReactNode }) {
     setMetas(metasIniciais);
   }, [setMetas]);
 
+  const carregarMetas = useCallback((novasMetas: Meta[]) => setMetas(novasMetas), [setMetas]);
+
   return (
     <MetasContext.Provider
       value={{
@@ -144,6 +150,7 @@ export function MetasProvider({ children }: { children: ReactNode }) {
         concluirMeta,
         forcarValorAtual,
         resetarMetas,
+        carregarMetas,
       }}
     >
       {children}
