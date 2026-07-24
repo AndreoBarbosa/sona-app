@@ -12,12 +12,13 @@ import { useValorAnimado } from "@/lib/use-valor-animado";
 import { cx } from "@/lib/cx";
 import { getCorMetaPorIndice } from "@/lib/cor-meta";
 import {
-  contas,
   categorias,
   diagnostico,
   formatBRL,
   getScoreSaudeFinanceira,
+  getProtecaoScore,
   getPatrimonioTotal,
+  getContasConectadas,
   getSobraTotal,
   getSobraSemDestino,
   getGastoTotal,
@@ -66,25 +67,27 @@ function IconPlusMini({ className }: { className?: string }) {
 
 export default function HomePage() {
   const { metas } = useMetas();
-  const { perfil } = useDemoStore();
+  const { perfil, bancosConectados } = useDemoStore();
 
   const primeiroNome = perfil.nome.split(" ")[0];
-  const score = getScoreSaudeFinanceira();
+  const gastoTotal = getGastoTotal();
+  const patrimonio = getPatrimonioTotal(bancosConectados);
+  // Score de proteção deriva do patrimônio REAL conectado — conectar mais
+  // banco muda o score de verdade (ver getProtecaoScore); folga/estabilidade
+  // continuam fixos (renda/gastos são canônicos independente do banco).
+  const score = getScoreSaudeFinanceira({ ...diagnostico.scores, protecao: getProtecaoScore(patrimonio, gastoTotal) });
   const metaDivergente = getMetasDivergentes(metas)[0];
 
-  const patrimonio = getPatrimonioTotal();
-  // `contas` já vem ordenada por saldo desc (ver mock-data.ts) — as MAIS
-  // relevantes primeiro. Antes este selo só mostrava contas com saldo > 0
-  // (excluindo MP/PicPay zeradas); o Figma real (652:2248) tem um 5º selo
-  // de overflow "+N", que só faz sentido existir se a pilha representar
-  // TODAS as contas conectadas, zeradas ou não — restaurado aqui.
-  const contasVisiveis = contas.slice(0, LOGOS_VISIVEIS_PATRIMONIO);
-  const contasExtras = Math.max(0, contas.length - LOGOS_VISIVEIS_PATRIMONIO);
+  // Só as contas que a pessoa efetivamente conectou (nunca "todas as contas
+  // do mock") — já vem ordenada por saldo desc. O selo "+N" de overflow só
+  // aparece acima de `LOGOS_VISIVEIS_PATRIMONIO` contas conectadas.
+  const contasConectadas = getContasConectadas(bancosConectados);
+  const contasVisiveis = contasConectadas.slice(0, LOGOS_VISIVEIS_PATRIMONIO);
+  const contasExtras = Math.max(0, contasConectadas.length - LOGOS_VISIVEIS_PATRIMONIO);
 
   const sobraTotal = getSobraTotal();
   const sobraSemDestino = getSobraSemDestino(metas);
   const sobraSemDestinoAnimada = useValorAnimado(sobraSemDestino);
-  const gastoTotal = getGastoTotal();
 
   const metaPrincipal = getMetasAtivas(metas)[0];
   const progressoMeta = metaPrincipal ? getPercentualMeta(metaPrincipal) : 0;
@@ -125,20 +128,21 @@ export default function HomePage() {
                 ainda mostra "R$ 12.450,00", é o Figma que está desatualizado. */}
             <Link href="/patrimonio" className="block transition-[filter] duration-rapido active:brightness-95">
               <Card tone="dark" radius="card-lg" padding="none" className="relative flex flex-col overflow-hidden p-4">
-                <div className="relative z-10 flex flex-col gap-4 border-b border-[rgba(232,238,242,0.1)] pb-4">
+                <div className="relative z-10 flex flex-col gap-4 border-b border-[rgba(232,238,242,0.1)] pb-3">
                   <div className="flex items-start justify-between gap-4">
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-4">
                       <span className="text-[10px] font-medium uppercase leading-none tracking-[0.04em] text-action">
                         Patrimônio consolidado
                       </span>
                       <div className="flex items-center gap-2">
                         <span className="text-h2 text-ink-inverse">{formatBRL(patrimonio)}</span>
-                        {/* Pill "+R$ 840 este mês" ao lado do valor — o nó
-                            usa fonte 5px (erro de escala do arquivo, mesma
-                            classe de bug já documentada alhures neste
-                            projeto); 10px é o tamanho que a hierarquia do
-                            resto do card sugere, com padding proporcional. */}
-                        <span className="flex h-5 items-center rounded-pill bg-[rgba(234,243,236,0.2)] px-2 text-[10px] font-medium leading-none text-action">
+                        {/* Pill "+R$ 840 este mês" ao lado do valor — flex,
+                            não absolute (o nó usa `left: 226` fixo, que
+                            quebraria pra qualquer valor de patrimônio com
+                            largura diferente); o nó também usa fonte 5px,
+                            erro de escala do arquivo — 10px é o tamanho que
+                            a hierarquia do resto do card sugere. */}
+                        <span className="flex items-center rounded-pill bg-[rgba(234,243,236,0.2)] px-2 py-[3px] text-[10px] font-medium leading-none text-action">
                           +R$ 840 este mês
                         </span>
                       </div>

@@ -1,39 +1,49 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { StatusBar } from "@/components/ui/status-bar";
+import { useDemoStore } from "@/lib/demo-context";
 import { cx } from "@/lib/cx";
+import { BANCO_COM_FALHA_ID } from "@/lib/bancos";
 
 /**
- * Diagnóstico — Loading — nó 778:4628, rota /diagnostico/analise. Aqui o
- * movimento É o conteúdo, não decoração: a % e os 5 rótulos avançam juntos
- * numa sequência real de ~5s (não CSS solto), e a navegação pra
- * /diagnostico/resultado só acontece quando ela de fato termina.
+ * Loading ÚNICO — nó 778:4628 adaptado, rota /conectar/carregando. Cobre
+ * conexão + leitura + processamento num só carregamento (~5s) em vez dos
+ * dois separados que existiam antes (`/conectar/conectando` mecânico +
+ * `/diagnostico/analise` sobre os dados): dois carregamentos em sequência,
+ * mesmo curtos, competem por atenção e fazem a espera parecer duplicada.
+ * As labels avançam JUNTO da porcentagem, não soltas.
  *
- * O Figma só exporta o frame em 0% (todo rótulo no estado "disabled") — o
- * tratamento de "em andamento"/"concluído" por rótulo (pulso sage vs. ponto
- * apagado) não vem do arquivo, é a variação real ao vivo pedida no briefing.
+ * Ao terminar: SUCESSO marca os bancos escolhidos como conectados
+ * (`demoStore.conectarBancos`) e segue pra /conectar/sucesso; FALHA (algum
+ * banco escolhido é `BANCO_COM_FALHA_ID`, determinístico) segue pra
+ * /conectar/erro SEM marcar nada como conectado.
  *
- * Sem BackButton por design: é uma sequência automática, sem controle do
- * usuário — mesmo princípio da Splash/Onboarding (progresso não pausa nem
- * volta no meio).
+ * Sem BackButton por design (mesma exceção documentada na Splash/Onboarding/
+ * antigo `/diagnostico/analise`): é uma sequência automática sem controle do
+ * usuário, progresso não pausa nem volta no meio.
  */
 
-const PASSOS = [
-  "Estabelecer conexão",
-  "Ler transações bancárias",
-  "Categorizar gastos",
-  "Estabelecer padrão de gastos",
-  "Gerar diagnóstico",
-];
+const PASSOS = ["Conectando com seu banco", "Lendo suas contas", "Organizando seus gastos", "Montando seu diagnóstico"];
 
-const DURACAO_MS = 5200;
+const DURACAO_MS = 5000;
 const INTERVALO_MS = 100;
 const INCREMENTO = (100 * INTERVALO_MS) / DURACAO_MS;
 
-export default function DiagnosticoAnalisePage() {
+export default function ConectarCarregandoPage() {
+  return (
+    <Suspense fallback={null}>
+      <ConectarCarregandoConteudo />
+    </Suspense>
+  );
+}
+
+function ConectarCarregandoConteudo() {
   const router = useRouter();
+  const { conectarBancos } = useDemoStore();
+  const bancosParam = useSearchParams().get("bancos");
+  const bancos = bancosParam ? bancosParam.split(",") : [];
   const [pct, setPct] = useState(0);
 
   useEffect(() => {
@@ -45,9 +55,18 @@ export default function DiagnosticoAnalisePage() {
 
   useEffect(() => {
     if (pct < 100) return;
-    const timeout = setTimeout(() => router.replace("/diagnostico/resultado"), 500);
+    const falhou = bancos.includes(BANCO_COM_FALHA_ID);
+    const timeout = setTimeout(() => {
+      if (falhou) {
+        router.replace(bancosParam ? `/conectar/erro?bancos=${bancosParam}` : "/conectar/erro");
+      } else {
+        conectarBancos(bancos);
+        router.replace(bancosParam ? `/conectar/sucesso?bancos=${bancosParam}` : "/conectar/sucesso");
+      }
+    }, 400);
     return () => clearTimeout(timeout);
-  }, [pct, router]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- `bancos` é derivado de `bancosParam` a cada render; disparar só quando `pct` cruza 100 evita reagendar o timeout a cada tick
+  }, [pct, bancosParam, router, conectarBancos]);
 
   const percentualExibido = Math.round(pct);
   const passoAtual = Math.min(PASSOS.length - 1, Math.floor(pct / (100 / PASSOS.length)));
@@ -60,7 +79,7 @@ export default function DiagnosticoAnalisePage() {
         <main className="flex flex-1 flex-col items-center justify-between px-4 pb-6 pt-10">
           <div className="flex w-full flex-col items-center gap-10">
             <span className="flex h-7 items-center justify-center rounded-pill border border-sage-400 px-4 text-[10px] font-medium uppercase leading-none tracking-[0.08em] text-sage-600">
-              Analisando
+              Conectando
             </span>
 
             <div className="flex w-full flex-col items-center gap-[60px]">

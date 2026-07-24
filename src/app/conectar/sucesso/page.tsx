@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect } from "react";
+import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { StatusBar } from "@/components/ui/status-bar";
 import { BackButton } from "@/components/ui/back-button";
@@ -8,19 +8,18 @@ import { Button } from "@/components/ui/button";
 import { getBancoPorId } from "@/lib/bancos";
 
 /**
- * Conexão Sucessida — nó 778:4643, rota /conectar/sucesso. Badge com o nome
- * do banco escolhido (dinâmico, via `?banco=`) — nunca hardcoded "Nubank"
- * como no Figma de origem. Único caminho a partir daqui é "Ver meu
- * diagnóstico" → /diagnostico/analise (regra da jornada: Open Finance →
- * Diagnóstico, nunca pulado).
- *
- * Avança sozinho depois de ~1.5s — agora que existe um loading de verdade
- * antes desta tela (`/conectar/conectando`), dois carregamentos separados
- * por uma tela de sucesso "pesada" viram espera demais. O botão continua
- * funcionando pra quem quiser ir na hora.
+ * Conexão Sucessida — nó 778:4643, rota /conectar/sucesso. Badge dinâmico
+ * (via `?bancos=`, lista separada por vírgula) — nome do único banco quando
+ * só um foi escolhido, contagem quando vários (nunca hardcoded "Nubank",
+ * nunca assume seleção única). Único caminho a partir daqui é "Ver meu
+ * diagnóstico" → /diagnostico/resultado — o loading de análise foi
+ * ABSORVIDO por /conectar/carregando (um só loading cobrindo conexão +
+ * leitura + diagnóstico), então não existe mais uma etapa de loading
+ * separada depois desta tela. Sem avanço automático: só um carregamento
+ * antes desta tela agora (não dois em sequência), então esperar o clique é
+ * a leitura certa — "SUCESSO → CTA" no briefing, não "SUCESSO → some
+ * sozinho".
  */
-const AVANCO_AUTOMATICO_MS = 1500;
-
 export default function ConectarSucessoPage() {
   return (
     <Suspense fallback={null}>
@@ -31,13 +30,9 @@ export default function ConectarSucessoPage() {
 
 function ConectarSucessoConteudo() {
   const router = useRouter();
-  const bancoId = useSearchParams().get("banco");
-  const banco = getBancoPorId(bancoId);
-
-  useEffect(() => {
-    const timeout = setTimeout(() => router.replace("/diagnostico/analise"), AVANCO_AUTOMATICO_MS);
-    return () => clearTimeout(timeout);
-  }, [router]);
+  const bancosParam = useSearchParams().get("bancos");
+  const bancoIds = bancosParam ? bancosParam.split(",") : [];
+  const bancos = bancoIds.map((id) => getBancoPorId(id)).filter((b): b is NonNullable<typeof b> => !!b);
 
   return (
     <div className="min-h-screen bg-surface-app">
@@ -52,11 +47,30 @@ function ConectarSucessoConteudo() {
             <img src="/decor/ilustracao-sucesso-conectar.svg" alt="" aria-hidden="true" className="h-full w-full" />
           </div>
 
-          {banco && (
+          {bancos.length === 1 && (
             <div className="mx-auto -mt-2 flex items-center gap-2 rounded-pill border border-border bg-white px-3 py-1.5">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={banco.logo} alt="" aria-hidden="true" className="h-4 w-4 shrink-0 rounded-pill" />
-              <span className="text-[10px] font-medium leading-[1.5] text-ink-secondary">{banco.nome} conectado</span>
+              <img src={bancos[0].logo} alt="" aria-hidden="true" className="h-4 w-4 shrink-0 rounded-pill" />
+              <span className="text-[10px] font-medium leading-[1.5] text-ink-secondary">{bancos[0].nome} conectado</span>
+            </div>
+          )}
+          {bancos.length > 1 && (
+            <div className="mx-auto -mt-2 flex items-center gap-2 rounded-pill border border-border bg-white px-3 py-1.5">
+              <div className="flex items-center">
+                {bancos.slice(0, 4).map((banco, i) => (
+                  <span
+                    key={banco.id}
+                    style={{ marginLeft: i === 0 ? 0 : -6 }}
+                    className="flex h-4 w-4 shrink-0 items-center justify-center overflow-hidden rounded-pill border border-white"
+                  >
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={banco.logo} alt="" aria-hidden="true" className="h-full w-full" />
+                  </span>
+                ))}
+              </div>
+              <span className="text-[10px] font-medium leading-[1.5] text-ink-secondary">
+                {bancos.length} bancos conectados
+              </span>
             </div>
           )}
 
@@ -79,7 +93,7 @@ function ConectarSucessoConteudo() {
               variant="tertiary"
               label="Ver meu diagnóstico"
               fullWidth
-              onClick={() => router.push("/diagnostico/analise")}
+              onClick={() => router.push("/diagnostico/resultado")}
             />
           </div>
         </main>

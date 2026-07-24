@@ -12,6 +12,8 @@ import {
   diagnostico,
   formatBRL,
   getScoreSaudeFinanceira,
+  getProtecaoScore,
+  getPatrimonioTotal,
   getGastoTotal,
   getPercentualCategoria,
   type Categoria,
@@ -45,10 +47,11 @@ const CATEGORIA_ICON_SRC: Partial<Record<CategoriaId, string>> = {
 };
 
 export default function DiagnosticoPage() {
-  const { perfil } = useDemoStore();
+  const { perfil, bancosConectados } = useDemoStore();
   const primeiroNome = perfil.nome.split(" ")[0];
-  const score = getScoreSaudeFinanceira();
   const gastoTotal = getGastoTotal();
+  const patrimonio = getPatrimonioTotal(bancosConectados);
+  const score = getScoreSaudeFinanceira({ ...diagnostico.scores, protecao: getProtecaoScore(patrimonio, gastoTotal) });
 
   // "outros" não é específica o bastante pra rankear/ter uma tela de detalhe —
   // mesmo corte que o nó 734:2625 usa (só 4 categorias, somando ~90%).

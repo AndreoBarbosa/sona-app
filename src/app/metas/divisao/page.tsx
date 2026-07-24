@@ -34,13 +34,22 @@ import { getMetasAtivas, getSobraTotal, formatBRL } from "@/lib/mock-data";
  * Copy computada da meta com `categoria === "prazo"` real, nunca hardcoded
  * "Viagem". As duas variantes compartilham o mesmo título ("Meta criada.")
  * no próprio Figma — a diferença entre "aceitou"/"ajustou" vive só no corpo.
+ *
+ * Headline DINÂMICA (mesma conta de `/metas`, nunca duas fontes pro mesmo
+ * texto) — "dois destinos" era hardcoded aqui, sobrevivência de quando o
+ * app sempre tinha exatamente 2 metas canônicas; com metas começando
+ * zeradas isso podia mentir (ex. dizer "dois destinos" com zero metas).
  */
+const NUMERO_EXTENSO = ["zero", "um", "dois", "três", "quatro", "cinco", "seis", "sete", "oito", "nove", "dez"];
+
 export default function DivisaoDaSobraPage() {
   const { metas, ajustarAporte } = useMetas();
   const router = useRouter();
 
   const metasAtivas = getMetasAtivas(metas);
   const sobraTotal = getSobraTotal();
+  const qtdDestinos = metasAtivas.length;
+  const destinoTexto = `${NUMERO_EXTENSO[qtdDestinos] ?? qtdDestinos} destino${qtdDestinos === 1 ? "" : "s"}.`;
 
   const [confirmacao, setConfirmacao] = useState<"aceitar" | "salvar" | null>(null);
   const [aportesFinais, setAportesFinais] = useState<Record<string, number>>({});
@@ -85,9 +94,9 @@ export default function DivisaoDaSobraPage() {
             <BackButton href="/metas" />
             <EyebrowHeadline
               eyebrow="Suas metas"
-              headline={"Uma sobra,\ndois destinos."}
+              headline={`Uma sobra,\n${destinoTexto}`}
               size="h1"
-              highlight={{ word: "dois destinos.", tone: "sage" }}
+              highlight={{ word: destinoTexto, tone: "sage" }}
             />
           </div>
 

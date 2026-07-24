@@ -14,15 +14,21 @@ import {
   getPercentualMeta,
   isMetaDivergente,
   formatBRL,
+  METAS_CENARIO_FERNANDA,
 } from "@/lib/mock-data";
 
-/** Fora do componente de propósito — impureza (`Math.random`) só é segura
- *  em código que o React não tenta re-executar durante render; um helper de
- *  módulo garante isso sem depender de heurística de "isto é um handler". */
+/**
+ * DETERMINÍSTICO de propósito (nunca `Math.random`) — é uma ferramenta de
+ * demonstração, precisa ser repetível: o mesmo clique tem que produzir o
+ * mesmo resultado toda vez, senão vira sorte, não um cenário reproduzível
+ * (mesmo raciocínio de `BANCO_COM_FALHA_ID`). R$400 é o próprio exemplo
+ * pedido (Viagem 3.800 → saldo real 3.400); metas menores usam metade do
+ * valor guardado, pra nunca zerar a diferença (o que faria a meta parar de
+ * ler como divergente).
+ */
 function calcularSaldoDivergente(valorAtual: number): number {
-  const diferenca = 50 + Math.round(Math.random() * 400);
-  const paraMenos = Math.random() < 0.5;
-  return paraMenos ? Math.max(0, valorAtual - diferenca) : valorAtual + diferenca;
+  const diferenca = valorAtual >= 400 ? 400 : Math.max(1, Math.round(valorAtual * 0.5));
+  return Math.max(0, valorAtual - diferenca);
 }
 
 /**
@@ -38,7 +44,7 @@ function calcularSaldoDivergente(valorAtual: number): number {
  * lado de cada botão, pra conferir a matemática sem abrir o DevTools.
  */
 export default function QaPage() {
-  const { metas, excluirMeta, simularDivergencia, forcarValorAtual, ajustarAporte } = useMetas();
+  const { metas, excluirMeta, simularDivergencia, forcarValorAtual, ajustarAporte, carregarMetas } = useMetas();
   const demo = useDemoStore();
   const resetarTudo = useResetDemo();
   const [confirmandoReset, setConfirmandoReset] = useState(false);
@@ -151,6 +157,11 @@ export default function QaPage() {
           Estados globais
         </span>
         <div className="flex flex-col gap-2">
+          <QaBotao
+            label="Carregar cenário Fernanda (2 metas maduras + histórico)"
+            onClick={() => carregarMetas(METAS_CENARIO_FERNANDA)}
+            tone="sage"
+          />
           <QaBotao label="Zerar todas as metas (empty state de Metas)" onClick={zerarTodasAsMetas} disabled={metasAtivas.length === 0} />
           {demo.historicoForcadoVazio ? (
             <QaBotao label="Restaurar histórico" onClick={demo.restaurarHistorico} tone="sage" />

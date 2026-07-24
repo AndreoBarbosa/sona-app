@@ -14,6 +14,12 @@ import { BANCOS } from "@/lib/bancos";
  * Acompanhamento — NUNCA invertida). Chega aqui a partir do "Conectar meu
  * banco agora" da Etapa 3 do onboarding.
  *
+ * SELEÇÃO MÚLTIPLA — o patrimônio consolidado é a soma dos bancos que a
+ * pessoa efetivamente escolhe aqui (ver `lib/mock-data.ts`,
+ * `getPatrimonioTotal`); conectar 1 banco não pode mostrar o patrimônio de
+ * todos. Exige pelo menos um selecionado pra continuar — "Continuar" fica
+ * desabilitado até isso ser verdade.
+ *
  * "Ver todos os +200 bancos suportados" vira texto informativo, não link —
  * não existe uma tela de lista completa de bancos pra apontar (regra: nenhum
  * link morto).
@@ -21,7 +27,7 @@ import { BANCOS } from "@/lib/bancos";
 export default function ConectarPage() {
   const router = useRouter();
   const [busca, setBusca] = useState("");
-  const [bancoSelecionado, setBancoSelecionado] = useState<string | null>(null);
+  const [selecionados, setSelecionados] = useState<string[]>([]);
 
   const bancosFiltrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
@@ -29,9 +35,15 @@ export default function ConectarPage() {
     return BANCOS.filter((b) => b.nome.toLowerCase().includes(termo));
   }, [busca]);
 
+  function alternar(bancoId: string) {
+    setSelecionados((atual) =>
+      atual.includes(bancoId) ? atual.filter((id) => id !== bancoId) : [...atual, bancoId],
+    );
+  }
+
   function continuar() {
-    if (!bancoSelecionado) return;
-    router.push(`/conectar/permissoes?banco=${bancoSelecionado}`);
+    if (selecionados.length === 0) return;
+    router.push(`/conectar/permissoes?bancos=${selecionados.join(",")}`);
   }
 
   return (
@@ -47,7 +59,7 @@ export default function ConectarPage() {
                 Conecte seu banco
               </span>
               <p className="text-h2 text-ink-primary">
-                Com qual banco você quer <span className="text-sage-400">começar</span>?
+                Com quais bancos você quer <span className="text-sage-400">começar</span>?
               </p>
             </div>
           </div>
@@ -68,12 +80,12 @@ export default function ConectarPage() {
 
             <div className="grid grid-cols-2 gap-3">
               {bancosFiltrados.map((banco) => {
-                const ativo = banco.id === bancoSelecionado;
+                const ativo = selecionados.includes(banco.id);
                 return (
                   <button
                     key={banco.id}
                     type="button"
-                    onClick={() => setBancoSelecionado(banco.id)}
+                    onClick={() => alternar(banco.id)}
                     aria-pressed={ativo}
                     className={cx(
                       "flex h-[53px] items-center gap-2 rounded-card border bg-white px-3 transition-colors duration-rapido ease-padrao",
@@ -83,6 +95,19 @@ export default function ConectarPage() {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img src={banco.logo} alt="" aria-hidden="true" className="h-6 w-6 shrink-0" />
                     <span className="text-[12px] font-normal leading-[1.5] text-ink-primary">{banco.nome}</span>
+                    <span
+                      aria-hidden="true"
+                      className={cx(
+                        "ml-auto flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] border",
+                        ativo ? "border-petroleo-700 bg-petroleo-700" : "border-border bg-white",
+                      )}
+                    >
+                      {ativo && (
+                        <svg viewBox="0 0 10 8" className="h-[7px] w-[9px]" aria-hidden="true">
+                          <path d="M1 4 3.5 6.5 9 1" stroke="#FAFAF8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" fill="none" />
+                        </svg>
+                      )}
+                    </span>
                   </button>
                 );
               })}
@@ -105,9 +130,15 @@ export default function ConectarPage() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <Button variant="primary" label="Continuar" fullWidth disabled={!bancoSelecionado} onClick={continuar} />
+              <Button variant="primary" label="Continuar" fullWidth disabled={selecionados.length === 0} onClick={continuar} />
               <Button variant="ghost" label="Fazer isso depois" fullWidth onClick={() => router.push("/home")} />
             </div>
+
+            {/* Nota de honestidade de escopo — item explicitamente pedido,
+                não pode se perder numa simplificação futura desta tela. */}
+            <p className="text-center text-[12px] font-normal leading-[1.5] text-[#8A8880]">
+              Demonstração: a conexão é simulada e os dados bancários são fictícios.
+            </p>
           </div>
         </main>
       </div>
