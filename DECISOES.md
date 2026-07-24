@@ -39,14 +39,33 @@ TODA e QUALQUER meta, sem exceção:
 
 ## Valores canônicos
 
-- Renda 5.800 · Gastos 4.851 · Sobra 949 · Score 75
-- Patrimônio 24.500 (Nubank 15.800 · C6 7.200 · Bradesco 1.500 · MP 0 · PicPay 0)
-- Reserva 19.500/30.000 · R$ 500/mês (53%) · abr 2028
-- Viagem 3.800/12.000 · R$ 200/mês (21%) · dez 2029
-- Sem destino: R$ 249 (26%)
-- Datas de chegada sempre CALCULADAS, nunca hardcoded — as datas acima (abr 2028, dez 2029) são
+**REGRA MAIOR (revisão): a interface representa exatamente o estado que a pessoa gerou —
+nada pré-carregado que ela não criou.** Isso reclassificou os valores abaixo em dois grupos:
+
+- **Vêm da conexão bancária** (premissa do Open Finance, sempre presentes assim que qualquer
+  banco é conectado, fictícios por definição): Renda 5.800 · Gastos 4.851 · Sobra 949 ·
+  categorias de gasto · lançamentos · histórico. Fixos independente de QUAL banco foi conectado.
+- **A pessoa cria, começa ZERADO, sem exceção**: metas e alocação da sobra. `metas` (mock-data.ts)
+  é `[]` por padrão — as duas metas "maduras" que já foram canônicas aqui (Reserva 19.500/30.000 ·
+  R$ 500/mês (53%) · abr 2028 — Viagem 3.800/12.000 · R$ 200/mês (21%) · dez 2029 — sem destino
+  R$ 249 (26%)) viraram **preset de demonstração** (`METAS_CENARIO_FERNANDA`,
+  carregável em `/qa`), nunca o estado inicial de quem abre o app pela primeira vez.
+- **Patrimônio é a soma dos bancos que a pessoa efetivamente conectou em `/conectar`**
+  (seleção múltipla, `getPatrimonioTotal(bancosConectados)`) — nunca um total fixo. Os 5 saldos
+  possíveis continuam canônicos (Nubank 15.800 · C6 7.200 · Bradesco 1.500 · MP 0 · PicPay 0);
+  conectar os cinco soma R$ 24.500 (o antigo "Patrimônio 24.500"), mas é a SOMA que deve bater,
+  não um número fixo — conectar só Nubank + C6, por exemplo, tem que dar exatamente R$ 23.000.
+- **Score de proteção (peso 30% do score geral) deriva do patrimônio conectado**
+  (`getProtecaoScore`, mock-data.ts — meses de gasto que o patrimônio cobre, sobre a meta
+  clássica de 6 meses) — varia com quantos bancos foram conectados, de propósito: prova que o
+  cálculo é real. Score ~75 (canônico) só reaparece com todos os 5 bancos conectados. Folga e
+  estabilidade continuam fixos (derivam de renda/gastos, que são canônicos independente do banco).
+- Datas de chegada sempre CALCULADAS, nunca hardcoded — as datas do preset (abr 2028, dez 2029) são
   a leitura de hoje; elas se movem sozinhas conforme os meses passam, porque nascem de
   `getDataPrevista()` a partir de `new Date()`. Isso é o comportamento correto, não drift a corrigir.
+- Teto de sanidade pro motor de alocação: alvo de meta acima de R$ 10.000.000 ou chegada
+  projetada além de 50 anos é sempre erro de entrada — a UI bloqueia e explica, nunca exibe
+  (`VALOR_ALVO_MAXIMO`/`ANOS_MAXIMO_CHEGADA`, mock-data.ts).
 
 ## Regras visuais
 
@@ -93,3 +112,21 @@ Light 20, corpo Outfit Light 12 centralizado, botão coral 205px, link cinza aba
 
 `src/lib/toast-context.tsx`. Usado em: excluir meta (pós-ação), pausar meta, retomar meta. NÃO
 usado em toggles (o próprio toggle já é o retorno visual).
+
+## Modo demo / persistência
+
+- localStorage sob chave versionada `sona:v2:*` (`src/lib/persist.ts`) — subir a versão é a forma
+  correta de invalidar sessões antigas quando o formato de dado muda, nunca tentar migrar.
+- `?reset=1` na raiz (`/`) limpa tudo e reinicia a partir da própria Splash — link de demonstração,
+  não remover.
+- Sem estado salvo → app começa zerado (splash → onboarding → conectar, sem nenhuma meta/banco
+  pré-existente). Com estado → retoma de onde parou.
+- **Onboarding NÃO tem etapa de nome.** Removida por completo — o nome vem só de Cadastro (campo
+  Nome) ou do login social simulado (pergunta no clique do botão, nunca num passo à parte). Quem
+  entra por "Conectar meu banco agora" sem passar por nenhum dos dois fica com "Fernanda" (padrão),
+  sem ser perguntado. Onboarding é sempre 3 etapas fixas (Boas-vindas · Como funciona · Conectar
+  banco) — nunca voltar a fazer esse total variar.
+- `/qa` (fora da navegação, dentro do build) é o painel de controle de demonstração: carrega o
+  preset `METAS_CENARIO_FERNANDA`, força divergência/conclusão por meta, zera metas/histórico/sobra,
+  alterna reduced-motion, e reseta tudo (mesmo efeito de `?reset=1`). Mostra sobra/comprometido/sem
+  destino e cada meta ao vivo, pra conferir a matemática sem DevTools.
